@@ -9,12 +9,22 @@ func main() {
 	// logger
 	l := log.New(os.Stdout, "", log.LstdFlags|log.Lshortfile)
 
-	sh := newSignalHandler(l)
-	wsh := newWsHandler(l, sh.doneCh)
-	go wsh.connect()
+	// strategy
+	strH := newStrategyHandler(l)
+	go strH.process()
 
-	sh.setBeforeCloseFunc(wsh.close)
-	sh.capture()
+	// signal
+	sigH := newSignalHandler(l)
+
+	// websocket
+	wsH := newWsHandler(l)
+	wsH.setSignalDoneCh(sigH.doneCh)
+	wsH.setStrategyHandler(strH)
+	go wsH.connect()
+
+	// signal
+	sigH.setBeforeCloseFunc(wsH.close)
+	sigH.capture()
 }
 
 // TODO Get pairs from redis, if not exists, read from DB

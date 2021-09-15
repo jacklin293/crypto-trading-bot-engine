@@ -60,15 +60,12 @@ type Contract struct {
 	hook Hooker
 }
 
-func NewContract(data map[string]interface{}) (c *Contract, err error) {
-	c = &Contract{}
+func NewContract(positionType string, data map[string]interface{}) (c *Contract, err error) {
+	c = &Contract{
+		Status: CLOSED, // default
+	}
 
 	// position type
-	positionType, ok := data["position_type"].(string)
-	if !ok {
-		err = errors.New("'position_type' is missing")
-		return
-	}
 	if positionType != LONG && positionType != SHORT {
 		err = fmt.Errorf("position_type '%s' not supported", positionType)
 		return
