@@ -2,10 +2,13 @@ package main
 
 import (
 	"context"
+	"crypto-trading-bot-main/strategy"
 	"log"
+	"sync"
 	"time"
 
 	"github.com/go-numb/go-ftx/realtime"
+	"github.com/shopspring/decimal"
 )
 
 const (
@@ -18,20 +21,29 @@ type wsHandler struct {
 	wsRespCh     chan realtime.Response // response from exchange
 	wsStopCh     chan bool              // graceful shutdown signal
 	signalDoneCh chan bool
+
+	strategyHandler *strategyHandler
 }
 
-func newWsHandler(l *log.Logger, ch chan bool) *wsHandler {
-	// FIXME context
+func newWsHandler(l *log.Logger) *wsHandler {
+	// TODO context
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
 	return &wsHandler{
-		ctx:          ctx,
-		wsRespCh:     make(chan realtime.Response),
-		wsStopCh:     make(chan bool),
-		logger:       l,
-		signalDoneCh: ch,
+		ctx:      ctx,
+		wsRespCh: make(chan realtime.Response),
+		wsStopCh: make(chan bool),
+		logger:   l,
 	}
+}
+
+func (h *wsHandler) setSignalDoneCh(ch chan bool) {
+	h.signalDoneCh = ch
+}
+
+func (h *wsHandler) setStrategyHandler(strH *strategyHandler) {
+	h.strategyHandler = strH
 }
 
 func (h *wsHandler) connect() {
@@ -57,35 +69,50 @@ func (h *wsHandler) connect() {
 
 func (h *wsHandler) listen() (err error) {
 	var lastTickerAsk, lastTickerBid float64
-	var now, lastTs int64
+
+	// Filter incoming response by last timestamp
+	var tradeLastTs sync.Map
+	var tickerLastTs sync.Map
 
 	for halted := false; !halted; {
 		select {
 		case v := <-h.wsRespCh:
-			// TODO by pair and by type
-			now = time.Now().Unix()
-			if now == lastTs {
-				continue
-			}
-
 			switch v.Type {
 			case realtime.TICKER:
+				if h.ignoreResp(&tickerLastTs, v.Symbol) {
+					break
+				}
+
 				if lastTickerAsk != v.Ticker.Ask || lastTickerBid != v.Ticker.Bid {
 					lastTickerAsk = v.Ticker.Ask
 					lastTickerBid = v.Ticker.Bid
 
 					h.logger.Printf("%s  %.4f (%.2f)  %.4f (%.2f) %s\n", v.Symbol, v.Ticker.Ask, v.Ticker.AskSize, v.Ticker.Bid, v.Ticker.BidSize, v.Ticker.Time.Time.Format("2006-01-02 15:04:05"))
 				}
-			case realtime.TRADES: // TODO can be used as mark price
+
+			case realtime.TRADES:
+				if h.ignoreResp(&tradeLastTs, v.Symbol) {
+					break
+				}
+
+				// Get the last one as mark price
 				trade := v.Trades[len(v.Trades)-1]
-				h.logger.Printf("%s  %4s | %.4f  %3.1f  %s\n", v.Symbol, trade.Side, trade.Price, trade.Size, trade.Time.Format("2006-01-02 15:04:05"))
+				mark := strategy.Mark{
+					Price: decimal.NewFromFloat(trade.Price),
+					Time:  trade.Time,
+				}
+				// h.logger.Printf("%s  %4s | %.4f  %3.1f  %s\n", v.Symbol, trade.Side, trade.Price, trade.Size, trade.Time.Format("2006-01-02 15:04:05"))
+				h.strategyHandler.broadcastMark(v.Symbol, mark)
+
 			case realtime.ERROR:
 				err = v.Results
 				halted = true
 			}
-			lastTs = time.Now().Unix()
+
 		case <-h.wsStopCh:
 			// Graceful shutdown signal
+			// Stop all strategy and sync.waitGroup all onging orders
+			h.strategyHandler.stopAll()
 			halted = true
 		}
 		if halted {
@@ -98,4 +125,17 @@ func (h *wsHandler) listen() (err error) {
 func (h *wsHandler) close() {
 	h.logger.Println("[ws] closing...")
 	close(h.wsStopCh)
+}
+
+func (h *wsHandler) ignoreResp(m *sync.Map, symbol string) bool {
+	ts := time.Now().UnixMilli()
+	lastTs, ok := m.Load(symbol)
+	if ok {
+		// the rate of checking prices during a second e.g. '< 200' means 4 times per second
+		if ts-lastTs.(int64) < 200 {
+			return true
+		}
+	}
+	m.Store(symbol, ts)
+	return false
 }

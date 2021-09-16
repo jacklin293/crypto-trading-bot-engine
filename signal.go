@@ -10,7 +10,7 @@ import (
 )
 
 const (
-	SHUTDOWN_TIMEOUT = 10
+	SHUTDOWN_TIMEOUT = 30
 )
 
 // Gracefull shutdown
@@ -57,7 +57,7 @@ func (h *signalHandler) shutdown() {
 	select {
 	case <-h.doneCh:
 	case <-h.ctx.Done():
-		h.logger.Printf("Timeout: > %d sec(s)\n", SHUTDOWN_TIMEOUT)
+		h.logger.Printf("Timeout: > %d seconds\n", SHUTDOWN_TIMEOUT)
 	}
 	h.logger.Printf("[pid:%d] terminated\n", syscall.Getpid())
 }
