@@ -32,6 +32,7 @@ func main() {
 	wsh := newWsHandler(l)
 	wsh.setSignalDoneCh(sh.doneCh)
 	wsh.setRunnerHandler(srh)
+	wsh.setDB(db)
 	go wsh.connect()
 
 	// signal

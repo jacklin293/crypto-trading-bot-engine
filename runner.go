@@ -6,7 +6,6 @@ import (
 	"crypto-trading-bot-main/strategy/contract"
 	"fmt"
 	"log"
-	"os"
 	"sync"
 )
 
@@ -48,8 +47,7 @@ func (h *runnerHandler) setDB(db *db.DB) {
 func (h *runnerHandler) process() {
 	contractStrategies, _, err := h.db.GetEnabledContractStrategies()
 	if err != nil {
-		h.logger.Println("err:", err)
-		os.Exit(1)
+		h.logger.Fatal("err:", err)
 	}
 
 	for _, cs := range contractStrategies {

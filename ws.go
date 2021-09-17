@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"crypto-trading-bot-main/db"
 	"crypto-trading-bot-main/runner"
 	"log"
 	"sync"
@@ -16,12 +17,12 @@ const (
 )
 
 type wsHandler struct {
-	logger       *log.Logger
-	ctx          context.Context
-	wsRespCh     chan realtime.Response // response from exchange
-	wsStopCh     chan bool              // graceful shutdown signal
-	signalDoneCh chan bool
-
+	logger        *log.Logger
+	ctx           context.Context
+	wsRespCh      chan realtime.Response // response from exchange
+	wsStopCh      chan bool              // graceful shutdown signal
+	signalDoneCh  chan bool
+	db            *db.DB
 	runnerHandler *runnerHandler
 }
 
@@ -42,12 +43,27 @@ func (h *wsHandler) setSignalDoneCh(ch chan bool) {
 	h.signalDoneCh = ch
 }
 
+func (h *wsHandler) setDB(db *db.DB) {
+	h.db = db
+}
+
 func (h *wsHandler) setRunnerHandler(srh *runnerHandler) {
 	h.runnerHandler = srh
 }
 
 func (h *wsHandler) connect() {
-	pairs := getPairs()
+	symbols, count, err := h.db.GetEnabledSymbols()
+	if err != nil {
+		h.logger.Fatal("err:", err)
+	}
+	if count == 0 {
+		h.logger.Fatal("There is no symbol")
+	}
+	var pairs []string
+	for _, s := range symbols {
+		pairs = append(pairs, s.Name)
+	}
+
 	for {
 		h.logger.Println("[ws] connecting...")
 		err := realtime.Connect(h.ctx, h.wsRespCh, []string{"trades"}, pairs, h.logger)
@@ -78,6 +94,7 @@ func (h *wsHandler) listen() (err error) {
 		select {
 		case v := <-h.wsRespCh:
 			switch v.Type {
+			// TODO keep??
 			case realtime.TICKER:
 				if h.ignoreResp(&tickerLastTs, v.Symbol) {
 					break
