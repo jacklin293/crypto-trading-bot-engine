@@ -12,11 +12,7 @@ import (
 type Status int
 
 const (
-	// Position type
-	LONG  = "long"
-	SHORT = "short"
-
-	// Contract status
+	// position status
 	OPENED Status = 1
 	CLOSED Status = 0
 )
@@ -41,11 +37,11 @@ type Hooker interface {
 }
 
 type Contract struct {
-	PositionType    string
-	EntryType       string
-	EntryOrder      order.Order
-	TakeProfitOrder order.Order
-	StopLossOrder   order.Order
+	ContractDirection order.ContractDirection
+	EntryType         string
+	EntryOrder        order.Order
+	TakeProfitOrder   order.Order
+	StopLossOrder     order.Order
 
 	// To check if contract has been opened
 	Status Status
@@ -60,17 +56,17 @@ type Contract struct {
 	hook Hooker
 }
 
-func NewContract(positionType string, data map[string]interface{}) (c *Contract, err error) {
+func NewContract(contractDirection order.ContractDirection, data map[string]interface{}) (c *Contract, err error) {
 	c = &Contract{
 		Status: CLOSED, // default
 	}
 
-	// position type
-	if positionType != LONG && positionType != SHORT {
-		err = fmt.Errorf("position_type '%s' not supported", positionType)
+	// contract direction
+	if contractDirection != order.LONG && contractDirection != order.SHORT {
+		err = fmt.Errorf("contract_direction '%d' not supported", contractDirection)
 		return
 	}
-	c.PositionType = positionType
+	c.ContractDirection = contractDirection
 
 	entryType, ok := data["entry_type"].(string)
 	if !ok {
@@ -89,7 +85,7 @@ func NewContract(positionType string, data map[string]interface{}) (c *Contract,
 		err = errors.New("'entry_order' is missing")
 		return
 	}
-	entryOrder, err := order.NewOrder(positionType, entryType, "entry", eo)
+	entryOrder, err := order.NewOrder(contractDirection, entryType, "entry", eo)
 	if err != nil {
 		return
 	}
@@ -99,7 +95,7 @@ func NewContract(positionType string, data map[string]interface{}) (c *Contract,
 	var takeProfitOrder order.Order
 	tpo, ok := data["take_profit_order"].(map[string]interface{})
 	if ok {
-		takeProfitOrder, err = order.NewOrder(positionType, entryType, "take_profit", tpo)
+		takeProfitOrder, err = order.NewOrder(contractDirection, entryType, "take_profit", tpo)
 		if err != nil {
 			return
 		}
@@ -110,7 +106,7 @@ func NewContract(positionType string, data map[string]interface{}) (c *Contract,
 	var stopLossOrder order.Order
 	slo, ok := data["stop_loss_order"].(map[string]interface{})
 	if ok {
-		stopLossOrder, err = order.NewOrder(positionType, entryType, "stop_loss", slo)
+		stopLossOrder, err = order.NewOrder(contractDirection, entryType, "stop_loss", slo)
 		if err != nil {
 			return
 		}
@@ -180,7 +176,7 @@ func (c *Contract) CheckPrice(t time.Time, p decimal.Decimal) (err error, halted
 			// These 2 orders will be constantly triggered when the mark price fluctuates around 42000 above and below
 			// Fix this issue by changing the operator of entry trigger
 			if c.EntryOrder.(*order.Entry).FlipOperatorEnabled {
-				c.EntryOrder.(*order.Entry).UpdateOperator(c.PositionType)
+				c.EntryOrder.(*order.Entry).UpdateOperator(c.ContractDirection)
 			}
 
 			c.hook.OrderTriggerUpdated(c)
@@ -234,17 +230,17 @@ func (c *Contract) CheckPrice(t time.Time, p decimal.Decimal) (err error, halted
 // entry_type 'baseline' only
 // Set baseline price as cost price
 func (c *Contract) setStopLossTrigger(p decimal.Decimal) {
-	c.StopLossOrder.(*order.StopLoss).UpdateTriggerByLossPercent(c.PositionType, p)
+	c.StopLossOrder.(*order.StopLoss).UpdateTriggerByLossPercent(c.ContractDirection, p)
 }
 
 // entry_type 'baseline' only
 // Update baseline trigger and entry order for preventing false breakout
 func (c *Contract) readjustEntryBaseline() {
 	// Update baseline trigger first
-	c.EntryOrder.(*order.Entry).UpdateBaselineTrigger(c.PositionType, c.BreakoutPeak.Price, c.BreakoutPeak.Time)
+	c.EntryOrder.(*order.Entry).UpdateBaselineTrigger(c.ContractDirection, c.BreakoutPeak.Price, c.BreakoutPeak.Time)
 
 	// Update entry order based on baseline trigger and offset
-	c.EntryOrder.(*order.Entry).UpdateTriggerByBaselineAndOffset(c.PositionType)
+	c.EntryOrder.(*order.Entry).UpdateTriggerByBaselineAndOffset(c.ContractDirection)
 }
 
 // entry_type 'baseline' only
@@ -255,13 +251,13 @@ func (c *Contract) setBreakoutPeak(t time.Time, p decimal.Decimal) {
 
 // entry_type 'baseline' only
 func (c *Contract) recordBreakoutPeak(t time.Time, p decimal.Decimal) {
-	switch c.PositionType {
-	case LONG:
+	switch c.ContractDirection {
+	case order.LONG:
 		if p.GreaterThanOrEqual(c.BreakoutPeak.Price) {
 			c.BreakoutPeak.Time = t
 			c.BreakoutPeak.Price = p
 		}
-	case SHORT:
+	case order.SHORT:
 		if p.LessThanOrEqual(c.BreakoutPeak.Price) {
 			c.BreakoutPeak.Time = t
 			c.BreakoutPeak.Price = p

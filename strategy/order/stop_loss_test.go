@@ -105,27 +105,27 @@ func TestStopLossIsTriggered(t *testing.T) {
 
 func TestStopLossUpdateTriggerByLossPercent(t *testing.T) {
 	testcases := []struct {
-		title           string
-		LossPercent     float64
-		positionType    string
-		baselinePrice   decimal.Decimal
-		expectedTrigger trigger.Trigger
+		title             string
+		LossPercent       float64
+		contractDirection ContractDirection
+		baselinePrice     decimal.Decimal
+		expectedTrigger   trigger.Trigger
 	}{
 		{
-			title:         "test long - positive percent",
-			LossPercent:   0.01,
-			positionType:  "long",
-			baselinePrice: decimal.NewFromFloat(100.1),
+			title:             "test long - positive percent",
+			LossPercent:       0.01,
+			contractDirection: LONG,
+			baselinePrice:     decimal.NewFromFloat(100.1),
 			expectedTrigger: &trigger.Limit{
 				Operator: "<=",
 				Price:    decimal.NewFromFloat(99.099),
 			},
 		},
 		{
-			title:         "test short - positive percent",
-			LossPercent:   0.01,
-			positionType:  "short",
-			baselinePrice: decimal.NewFromFloat(100.1),
+			title:             "test short - positive percent",
+			LossPercent:       0.01,
+			contractDirection: SHORT,
+			baselinePrice:     decimal.NewFromFloat(100.1),
 			expectedTrigger: &trigger.Limit{
 				Operator: ">=",
 				Price:    decimal.NewFromFloat(101.101),
@@ -135,7 +135,7 @@ func TestStopLossUpdateTriggerByLossPercent(t *testing.T) {
 
 	for _, tc := range testcases {
 		o := &StopLoss{LossTolerancePercent: tc.LossPercent}
-		o.UpdateTriggerByLossPercent(tc.positionType, tc.baselinePrice)
+		o.UpdateTriggerByLossPercent(tc.contractDirection, tc.baselinePrice)
 
 		if !reflect.DeepEqual(tc.expectedTrigger, o.GetTrigger()) {
 			t.Errorf("TestStopLossUpdateTriggerByLossPercent case '%s' - expect '%v', but got '%v'", tc.title, tc.expectedTrigger, o.GetTrigger())

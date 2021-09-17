@@ -74,7 +74,7 @@ func TestNewOrder(t *testing.T) {
 	}
 
 	for _, tc := range testcases {
-		_, err := NewOrder("long", "limit", tc.orderType, tc.data)
+		_, err := NewOrder(LONG, "limit", tc.orderType, tc.data)
 		hasError := (err != nil)
 		if tc.expectedError != hasError {
 			t.Errorf("TestNewOrder case '%s' - expect '%t', but got '%t'", tc.title, tc.expectedError, hasError)

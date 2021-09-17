@@ -69,15 +69,15 @@ func (o *StopLoss) IsTriggered(t time.Time, p decimal.Decimal) bool {
 	return trigger.IsTriggeredBySingleTrigger(o.Trigger, t, p)
 }
 
-func (o *StopLoss) UpdateTriggerByLossPercent(positionType string, baselinePrice decimal.Decimal) {
+func (o *StopLoss) UpdateTriggerByLossPercent(contractDirection ContractDirection, baselinePrice decimal.Decimal) {
 	var t trigger.Trigger
-	switch positionType {
-	case "long":
+	switch contractDirection {
+	case LONG:
 		t = &trigger.Limit{
 			Operator: "<=",
 			Price:    baselinePrice.Mul(decimal.NewFromFloat(1 - o.LossTolerancePercent)),
 		}
-	case "short":
+	case SHORT:
 		t = &trigger.Limit{
 			Operator: ">=",
 			Price:    baselinePrice.Mul(decimal.NewFromFloat(1 + o.LossTolerancePercent)),
