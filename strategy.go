@@ -37,7 +37,7 @@ func (h *strategyHandler) setLogger(l *log.Logger) {
 
 func (h *strategyHandler) process() {
 	// TODO check new enabled strategy
-	strategyRows := []string{"fff", "bbb"}
+	strategyRows := []string{"strategy_0001", "strategy_0002"}
 	for _, strategyId := range strategyRows {
 		payload := `
 {
@@ -69,7 +69,7 @@ func (h *strategyHandler) process() {
 		// TODO
 		symbol := "BTC-PERP"
 		status := contract.OPENED
-		positionType := "long"
+		positionType := contract.LONG
 
 		var params map[string]interface{}
 		err := json.Unmarshal([]byte(payload), &params)
@@ -77,11 +77,13 @@ func (h *strategyHandler) process() {
 			// TODO add strategy id into message
 			h.logger.Println("Failed to unmarshal strategy params (id: TODO), err:", err)
 		}
-		s, err := strategy.NewStrategy(strategyId, symbol, positionType, status, params)
+		// TODO pass DB strategy
+		s, err := strategy.NewStrategy(strategyId, symbol, positionType, params)
 		if err != nil {
 			// TODO add strategy id into message
 			h.logger.Println("Failed to new strategy (id: TODO), err: ", err)
 		}
+		s.SetPositionStatus(status)
 		s.SetLogger(h.logger)
 		s.SetBeforeCloseFunc(h.stopStrategyRunner)
 		s.SetHandlerBlockWg(&h.blockWg)
@@ -99,13 +101,14 @@ func (h *strategyHandler) process() {
 		case action := <-h.eventCh:
 			// TODO unmarshal event payload
 			switch action {
-			case "stop":
+			case "stop_strategy":
 				// TODO close stopCh
-			case "restart":
+			case "restart_strategy":
 				// TODO close stopCh
 				// TODO Read strategy from DB
 				// TODO New strategy
 				// TODO start that strategy again
+			case "start_strategy":
 			}
 		}
 	}

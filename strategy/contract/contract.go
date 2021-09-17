@@ -143,26 +143,33 @@ func (c *Contract) CheckPrice(t time.Time, p decimal.Decimal) (err error, halted
 			}
 
 			// Entry order is triggered
-			var costPrice decimal.Decimal
-			if costPrice, err, halted = c.hook.EntryTriggered(c, t, p); err != nil || halted {
+			var entryPrice decimal.Decimal
+			if entryPrice, err, halted = c.hook.EntryTriggered(c, t, p); err != nil || halted {
 				return
 			}
 
 			c.Status = OPENED
 			c.hook.StatusChanged(c)
 
-			// For entry_type 'baseline', stop-loss order will be updated after entry order being created
-			if c.EntryType == order.ENTRY_BASELINE && c.StopLossOrder != nil {
-				// Set stop-loss trigger
-				c.setStopLossTrigger(costPrice)
-				if err, halted = c.hook.StopLossTriggerCreated(c); err != nil || halted {
-					return
-				}
+			// Set stop-loss trigger & order
+			if c.StopLossOrder != nil {
+				switch c.EntryType {
+				case order.ENTRY_LIMIT:
+					if err, halted = c.hook.StopLossTriggerCreated(c); err != nil || halted {
+						return
+					}
+				case order.ENTRY_BASELINE:
+					// For entry_type 'baseline', stop-loss order will depend on entry price
+					c.setStopLossTrigger(entryPrice)
+					if err, halted = c.hook.StopLossTriggerCreated(c); err != nil || halted {
+						return
+					}
 
-				// Record breakout peak
-				if c.StopLossOrder.(*order.StopLoss).BaselineReadjustmentEnabled {
-					// Set breakout peak because price is default '0', it casues a bug in Short position
-					c.setBreakoutPeak(t, p)
+					// Record breakout peak
+					if c.StopLossOrder.(*order.StopLoss).BaselineReadjustmentEnabled {
+						// Set breakout peak because price is default '0', it casues a bug in Short position
+						c.setBreakoutPeak(t, p)
+					}
 				}
 			}
 
