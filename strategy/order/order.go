@@ -8,7 +8,12 @@ import (
 	"github.com/shopspring/decimal"
 )
 
+type ContractDirection int64
+
 const (
+	LONG  ContractDirection = 1
+	SHORT ContractDirection = 2
+
 	ENTRY_LIMIT    = "limit"    // entry trigger is Limit trigger
 	ENTRY_BASELINE = "baseline" // entry trigger (Line trigger) and stop-loss trigger (Limit trigger) are based on baseline
 )
@@ -19,10 +24,10 @@ type Order interface {
 	SetTrigger(trigger.Trigger)
 }
 
-func NewOrder(positionType string, entryType, orderType string, data map[string]interface{}) (o Order, err error) {
+func NewOrder(contractDirection ContractDirection, entryType, orderType string, data map[string]interface{}) (o Order, err error) {
 	switch orderType {
 	case "entry":
-		return NewEntry(positionType, entryType, data)
+		return NewEntry(contractDirection, entryType, data)
 	case "take_profit":
 		return NewTakeProfit(data)
 	case "stop_loss":

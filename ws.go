@@ -2,7 +2,7 @@ package main
 
 import (
 	"context"
-	"crypto-trading-bot-main/strategy"
+	"crypto-trading-bot-main/runner"
 	"log"
 	"sync"
 	"time"
@@ -12,7 +12,7 @@ import (
 )
 
 const (
-	WS_RETRY_SECONDS = 3
+	WS_RETRY_SLEEP_SECONDS = 3
 )
 
 type wsHandler struct {
@@ -22,7 +22,7 @@ type wsHandler struct {
 	wsStopCh     chan bool              // graceful shutdown signal
 	signalDoneCh chan bool
 
-	strategyHandler *strategyHandler
+	runnerHandler *runnerHandler
 }
 
 func newWsHandler(l *log.Logger) *wsHandler {
@@ -42,8 +42,8 @@ func (h *wsHandler) setSignalDoneCh(ch chan bool) {
 	h.signalDoneCh = ch
 }
 
-func (h *wsHandler) setStrategyHandler(strH *strategyHandler) {
-	h.strategyHandler = strH
+func (h *wsHandler) setRunnerHandler(srh *runnerHandler) {
+	h.runnerHandler = srh
 }
 
 func (h *wsHandler) connect() {
@@ -53,8 +53,8 @@ func (h *wsHandler) connect() {
 		err := realtime.Connect(h.ctx, h.wsRespCh, []string{"trades"}, pairs, h.logger)
 		if err != nil {
 			h.logger.Println("[ws] connection err:", err)
-			h.logger.Printf("[ws] retry after %d seconds\n", WS_RETRY_SECONDS)
-			time.Sleep(time.Second * WS_RETRY_SECONDS)
+			h.logger.Printf("[ws] retry after %d seconds\n", WS_RETRY_SLEEP_SECONDS)
+			time.Sleep(time.Second * WS_RETRY_SLEEP_SECONDS)
 			continue
 		}
 		h.logger.Println("[ws] listening...")
@@ -97,12 +97,12 @@ func (h *wsHandler) listen() (err error) {
 
 				// Get the last one as mark price
 				trade := v.Trades[len(v.Trades)-1]
-				mark := strategy.Mark{
+				mark := runner.Mark{
 					Price: decimal.NewFromFloat(trade.Price),
 					Time:  trade.Time,
 				}
 				// h.logger.Printf("%s  %4s | %.4f  %3.1f  %s\n", v.Symbol, trade.Side, trade.Price, trade.Size, trade.Time.Format("2006-01-02 15:04:05"))
-				h.strategyHandler.broadcastMark(v.Symbol, mark)
+				h.runnerHandler.broadcastMark(v.Symbol, mark)
 
 			case realtime.ERROR:
 				err = v.Results
@@ -112,7 +112,7 @@ func (h *wsHandler) listen() (err error) {
 		case <-h.wsStopCh:
 			// Graceful shutdown signal
 			// Stop all strategy and sync.waitGroup all onging orders
-			h.strategyHandler.stopAll()
+			h.runnerHandler.stopAll()
 			halted = true
 		}
 		if halted {

@@ -28,12 +28,12 @@ CREATE TABLE `contract_strategies` (
   `user_uuid` char(36) NOT NULL COMMENT 'User uuid',
   `symbol` varchar(20) NOT NULL COMMENT 'Symbol e.g. BTC-PERP',
   `cost` decimal(18,8) unsigned NOT NULL COMMENT 'Cost',
-  `contract_params` longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_bin NOT NULL COMMENT 'Contract params' CHECK (json_valid(`contract_params`)),
+  `contract_direction` tinyint(4) unsigned NOT NULL COMMENT '1: long 0: short',
+  `contract_params` longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_bin NOT NULL DEFAULT '\'{}\'' COMMENT 'Contract params' CHECK (json_valid(`contract_params`)),
   `enabled` tinyint(3) unsigned NOT NULL DEFAULT 0 COMMENT '1: enabled 0: disabled',
-  `position_type` tinyint(4) unsigned NOT NULL COMMENT '1: long 0: short',
   `position_status` tinyint(4) unsigned NOT NULL DEFAULT 0 COMMENT '2: unknown 1: opened 0: closed',
   `exchange` varchar(20) NOT NULL COMMENT 'Exchange name e.g. FTX',
-  `exchange_orders_details` longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_bin NOT NULL COMMENT 'Bespoke orders details by exchange',
+  `exchange_orders_details` longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_bin NOT NULL DEFAULT '\'{}\'' COMMENT 'Bespoke orders details by exchange' CHECK (json_valid(`exchange_orders_details`)),
   `last_position_at` datetime DEFAULT NULL COMMENT 'Last position created time',
   `created_at` datetime NOT NULL DEFAULT current_timestamp() COMMENT 'Create time',
   `updated_at` datetime NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp() COMMENT 'Update time',
@@ -54,4 +54,4 @@ CREATE TABLE `contract_strategies` (
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2021-09-17 19:05:48
+-- Dump completed on 2021-09-17 22:35:13

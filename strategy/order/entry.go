@@ -15,7 +15,7 @@ type Entry struct {
 	FlipOperatorEnabled   bool
 }
 
-func NewEntry(positionType string, entryType string, data map[string]interface{}) (*Entry, error) {
+func NewEntry(contractDirection ContractDirection, entryType string, data map[string]interface{}) (*Entry, error) {
 	var o Entry
 	var err error
 
@@ -51,7 +51,7 @@ func NewEntry(positionType string, entryType string, data map[string]interface{}
 			return &o, errors.New("'baseline_offset_percent' is missing")
 		}
 		o.BaselineOffsetPercent = p
-		o.UpdateTriggerByBaselineAndOffset(positionType)
+		o.UpdateTriggerByBaselineAndOffset(contractDirection)
 
 		var enabled bool
 		enabled, ok = data["flip_operator_enabled"].(bool)
@@ -77,17 +77,17 @@ func (o *Entry) IsTriggered(t time.Time, p decimal.Decimal) bool {
 }
 
 // entry_type 'baseline' only
-func (o *Entry) UpdateBaselineTrigger(positionType string, p2 decimal.Decimal, t2 time.Time) {
+func (o *Entry) UpdateBaselineTrigger(contractDirection ContractDirection, p2 decimal.Decimal, t2 time.Time) {
 	// If trigger type is Limit, set the price given
 	// If trigger type is Line, when price2 > price1, set price2 = price1
 	lineTrigger, ok := o.BaselineTrigger.(*trigger.Line)
 	if ok {
-		switch positionType {
-		case "long":
+		switch contractDirection {
+		case LONG:
 			if p2.GreaterThanOrEqual(lineTrigger.Price1) {
 				p2 = lineTrigger.Price1
 			}
-		case "short":
+		case SHORT:
 			if p2.LessThanOrEqual(lineTrigger.Price1) {
 				p2 = lineTrigger.Price1
 			}
@@ -99,13 +99,13 @@ func (o *Entry) UpdateBaselineTrigger(positionType string, p2 decimal.Decimal, t
 // entry_type 'baseline' only
 // For long position, entry order will be triggered at the price higher than baseline
 // For short position, entry order will be triggered at the price lower than baseline
-func (o *Entry) UpdateTriggerByBaselineAndOffset(positionType string) {
+func (o *Entry) UpdateTriggerByBaselineAndOffset(contractDirection ContractDirection) {
 	// entry order based on baseline_trigger and offset percent
 	var percent decimal.Decimal
-	switch positionType {
-	case "long":
+	switch contractDirection {
+	case LONG:
 		percent = decimal.NewFromFloat(1 + o.BaselineOffsetPercent)
-	case "short":
+	case SHORT:
 		percent = decimal.NewFromFloat(1 - o.BaselineOffsetPercent)
 	}
 	// Use SetTrigger to prevent BaselineTrigger from being modified due to pointer
@@ -114,9 +114,9 @@ func (o *Entry) UpdateTriggerByBaselineAndOffset(positionType string) {
 }
 
 // Update operator for breakout
-func (o *Entry) UpdateOperator(positionType string) {
-	switch positionType {
-	case "long":
+func (o *Entry) UpdateOperator(contractDirection ContractDirection) {
+	switch contractDirection {
+	case LONG:
 		// Trigger always exists, but just in case
 		if o.Trigger != nil {
 			o.Trigger.SetOperator(">=")
@@ -126,7 +126,7 @@ func (o *Entry) UpdateOperator(positionType string) {
 		if o.BaselineTrigger != nil {
 			o.BaselineTrigger.SetOperator(">=")
 		}
-	case "short":
+	case SHORT:
 		// Trigger always exists, but just in case
 		if o.Trigger != nil {
 			o.Trigger.SetOperator("<=")
