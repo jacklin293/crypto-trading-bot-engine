@@ -14,5 +14,11 @@
 # Dependency directories (remove the comment below to include it)
 # vendor/
 
+# binary
 crypto-trading-bot-main
+
+# todo plans
 TODO.md
+
+# Dev DB env
+mariadb
