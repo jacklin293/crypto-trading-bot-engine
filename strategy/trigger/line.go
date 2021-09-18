@@ -10,11 +10,12 @@ import (
 
 // trigger_type: 'line'
 type Line struct {
-	Operator string // '>=' or '<='
-	Time1    time.Time
-	Price1   decimal.Decimal
-	Time2    time.Time
-	Price2   decimal.Decimal
+	TriggerType string          `json:"trigger_type"`
+	Operator    string          `json:"operator"` // '>=' or '<='
+	Time1       time.Time       `json:"time_1"`
+	Price1      decimal.Decimal `json:"price_1"`
+	Time2       time.Time       `json:"time_2"`
+	Price2      decimal.Decimal `json:"price_2"`
 }
 
 // New line trigger
@@ -29,20 +30,28 @@ func newLine(data map[string]interface{}) (l *Line, err error) {
 	}
 
 	// price 1
-	p1, ok := data["price_1"].(float64)
+	p1, ok := data["price_1"].(string)
 	if !ok {
-		err = errors.New("'price_1' is missing or not a float")
+		err = errors.New("'price_1' is missing or not string")
 		return
 	}
-	price1 := decimal.NewFromFloat(p1)
+	price1, err := decimal.NewFromString(p1)
+	if err != nil {
+		err = errors.New("'price_1' isn't a stringified number")
+		return
+	}
 
 	// price 2
-	p2, ok := data["price_2"].(float64)
+	p2, ok := data["price_2"].(string)
 	if !ok {
-		err = errors.New("'price_2' is missing or not a float")
+		err = errors.New("'price_2' is missing or not string")
 		return
 	}
-	price2 := decimal.NewFromFloat(p2)
+	price2, err := decimal.NewFromString(p2)
+	if err != nil {
+		err = errors.New("'price_2' isn't a stringified number")
+		return
+	}
 
 	// time 1
 	t1, ok := data["time_1"].(string)
@@ -50,7 +59,7 @@ func newLine(data map[string]interface{}) (l *Line, err error) {
 		err = errors.New("'time_1' is missing")
 		return
 	}
-	time1, err := time.Parse("2006-01-02 15:04:05", t1)
+	time1, err := time.Parse(time.RFC3339, t1)
 	if err != nil {
 		err = fmt.Errorf("failed to parse 'time_1', err: %v", err)
 		return
@@ -62,7 +71,7 @@ func newLine(data map[string]interface{}) (l *Line, err error) {
 		err = errors.New("'time_2' is missing")
 		return
 	}
-	time2, err := time.Parse("2006-01-02 15:04:05", t2)
+	time2, err := time.Parse(time.RFC3339, t2)
 	if err != nil {
 		err = fmt.Errorf("failed to parse 'time_2', err: %v", err)
 		return
@@ -75,11 +84,12 @@ func newLine(data map[string]interface{}) (l *Line, err error) {
 	}
 
 	return &Line{
-		Operator: operator,
-		Time1:    time1,
-		Price1:   price1,
-		Time2:    time2,
-		Price2:   price2,
+		TriggerType: "line",
+		Operator:    operator,
+		Time1:       time1,
+		Price1:      price1,
+		Time2:       time2,
+		Price2:      price2,
 	}, nil
 }
 

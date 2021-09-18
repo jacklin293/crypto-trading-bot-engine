@@ -23,7 +23,7 @@ func TestNewEntry(t *testing.T) {
 				"trigger": map[string]interface{}{
 					"trigger_type": "limit",
 					"operator":     "<=",
-					"price":        47200.23,
+					"price":        "47200.23",
 				},
 			},
 			expectedError: false,
@@ -41,10 +41,10 @@ func TestNewEntry(t *testing.T) {
 				"baseline_trigger": map[string]interface{}{
 					"trigger_type": "line",
 					"operator":     ">=",
-					"time_1":       "2021-08-18 18:00:00",
-					"price_1":      46000.23,
-					"time_2":       "2021-08-19 01:45:00",
-					"price_2":      45234.56,
+					"time_1":       "2021-08-18T18:00:00Z",
+					"price_1":      "46000.23",
+					"time_2":       "2021-08-19T01:45:00Z",
+					"price_2":      "45234.56",
 				},
 				"baseline_offset_percent": 0.005,
 			},
@@ -65,10 +65,10 @@ func TestNewEntry(t *testing.T) {
 				"baseline_trigger": map[string]interface{}{
 					"trigger_type": "line",
 					"operator":     ">=",
-					"time_1":       "2021-08-18 18:00:00",
-					"price_1":      46000.23,
-					"time_2":       "2021-08-19 01:45:00",
-					"price_2":      45234.56,
+					"time_1":       "2021-08-18T18:00:00Z",
+					"price_1":      "46000.23",
+					"time_2":       "2021-08-19T01:45:00Z",
+					"price_2":      "45234.56",
 				},
 			},
 			expectedError: true,
@@ -115,15 +115,15 @@ func TestEntryIsTriggered(t *testing.T) {
 func TestEntryUpdateBaselineTrigger(t *testing.T) {
 	testcases := []struct {
 		title                   string
-		contractDirection       ContractDirection
+		side                    Side
 		baselineTrigger         trigger.Trigger
 		price2                  decimal.Decimal
 		time2                   time.Time
 		expectedBaselineTrigger trigger.Trigger
 	}{
 		{
-			title:             "long - price1 > price2",
-			contractDirection: LONG,
+			title: "long - price1 > price2",
+			side:  LONG,
 			baselineTrigger: &trigger.Line{
 				Operator: ">=",
 				Time1:    time.Date(2021, 8, 29, 1, 15, 0, 0, time.UTC),
@@ -142,8 +142,8 @@ func TestEntryUpdateBaselineTrigger(t *testing.T) {
 			},
 		},
 		{
-			title:             "long - price1 < price2",
-			contractDirection: LONG,
+			title: "long - price1 < price2",
+			side:  LONG,
 			baselineTrigger: &trigger.Line{
 				Operator: ">=",
 				Time1:    time.Date(2021, 8, 29, 1, 15, 0, 0, time.UTC),
@@ -162,8 +162,8 @@ func TestEntryUpdateBaselineTrigger(t *testing.T) {
 			},
 		},
 		{
-			title:             "short - price1 < price2",
-			contractDirection: SHORT,
+			title: "short - price1 < price2",
+			side:  SHORT,
 			baselineTrigger: &trigger.Line{
 				Operator: "<=",
 				Time1:    time.Date(2021, 8, 27, 0, 15, 0, 0, time.UTC),
@@ -182,8 +182,8 @@ func TestEntryUpdateBaselineTrigger(t *testing.T) {
 			},
 		},
 		{
-			title:             "short - price1 > price2",
-			contractDirection: SHORT,
+			title: "short - price1 > price2",
+			side:  SHORT,
 			baselineTrigger: &trigger.Line{
 				Operator: "<=",
 				Time1:    time.Date(2021, 8, 27, 0, 15, 0, 0, time.UTC),
@@ -207,7 +207,7 @@ func TestEntryUpdateBaselineTrigger(t *testing.T) {
 		o := Entry{
 			BaselineTrigger: tc.baselineTrigger,
 		}
-		o.UpdateBaselineTrigger(tc.contractDirection, tc.price2, tc.time2)
+		o.UpdateBaselineTrigger(tc.side, tc.price2, tc.time2)
 
 		if !reflect.DeepEqual(tc.expectedBaselineTrigger, o.BaselineTrigger) {
 			t.Errorf("TestEntryUpdateBaselineTrigger case '%s' - expect '%v', but got '%v'", tc.title, tc.expectedBaselineTrigger, o.BaselineTrigger)
@@ -217,15 +217,15 @@ func TestEntryUpdateBaselineTrigger(t *testing.T) {
 
 func TestEntryUpdateTriggerByBaselineAndOffset(t *testing.T) {
 	testcases := []struct {
-		title             string
-		contractDirection ContractDirection
-		percent           float64
-		expectedTrigger   trigger.Trigger
+		title           string
+		side            Side
+		percent         float64
+		expectedTrigger trigger.Trigger
 	}{
 		{
-			title:             "long - positive percent",
-			contractDirection: LONG,
-			percent:           0.01,
+			title:   "long - positive percent",
+			side:    LONG,
+			percent: 0.01,
 			expectedTrigger: &trigger.Line{
 				Operator: "<=",
 				Time1:    time.Date(2021, 8, 27, 0, 15, 0, 0, time.UTC),
@@ -235,9 +235,9 @@ func TestEntryUpdateTriggerByBaselineAndOffset(t *testing.T) {
 			},
 		},
 		{
-			title:             "long - negative percent",
-			contractDirection: LONG,
-			percent:           -0.01,
+			title:   "long - negative percent",
+			side:    LONG,
+			percent: -0.01,
 			expectedTrigger: &trigger.Line{
 				Operator: "<=",
 				Time1:    time.Date(2021, 8, 27, 0, 15, 0, 0, time.UTC),
@@ -247,9 +247,9 @@ func TestEntryUpdateTriggerByBaselineAndOffset(t *testing.T) {
 			},
 		},
 		{
-			title:             "short - positive percent",
-			contractDirection: SHORT,
-			percent:           0.01,
+			title:   "short - positive percent",
+			side:    SHORT,
+			percent: 0.01,
 			expectedTrigger: &trigger.Line{
 				Operator: "<=",
 				Time1:    time.Date(2021, 8, 27, 0, 15, 0, 0, time.UTC),
@@ -259,9 +259,9 @@ func TestEntryUpdateTriggerByBaselineAndOffset(t *testing.T) {
 			},
 		},
 		{
-			title:             "short - negative percent",
-			contractDirection: SHORT,
-			percent:           -0.01,
+			title:   "short - negative percent",
+			side:    SHORT,
+			percent: -0.01,
 			expectedTrigger: &trigger.Line{
 				Operator: "<=",
 				Time1:    time.Date(2021, 8, 27, 0, 15, 0, 0, time.UTC),
@@ -283,7 +283,7 @@ func TestEntryUpdateTriggerByBaselineAndOffset(t *testing.T) {
 			},
 			BaselineOffsetPercent: tc.percent,
 		}
-		o.UpdateTriggerByBaselineAndOffset(tc.contractDirection)
+		o.UpdateTriggerByBaselineAndOffset(tc.side)
 
 		if !reflect.DeepEqual(tc.expectedTrigger, o.Trigger) {
 			t.Errorf("TestEntryUpdateTriggerByBaselineAndOffset case '%s' - expect '%v', but got '%v'", tc.title, tc.expectedTrigger, o.Trigger)
@@ -291,18 +291,18 @@ func TestEntryUpdateTriggerByBaselineAndOffset(t *testing.T) {
 	}
 }
 
-func TestEntryUpdateOperator(t *testing.T) {
+func TestEntryFlipOperator(t *testing.T) {
 	testcases := []struct {
 		title                   string
-		contractDirection       ContractDirection
+		side                    Side
 		trigger                 trigger.Trigger
 		baselineTrigger         trigger.Trigger
 		expectedTrigger         trigger.Trigger
 		expectedBaselineTrigger trigger.Trigger
 	}{
 		{
-			title:             "long - trigger & baseline trigger",
-			contractDirection: LONG,
+			title: "long - trigger & baseline trigger",
+			side:  LONG,
 			trigger: &trigger.Limit{
 				Operator: "<=",
 				Price:    decimal.NewFromInt(100),
@@ -321,8 +321,8 @@ func TestEntryUpdateOperator(t *testing.T) {
 			},
 		},
 		{
-			title:             "long - trigger only",
-			contractDirection: LONG,
+			title: "long - trigger only",
+			side:  LONG,
 			trigger: &trigger.Limit{
 				Operator: "<=",
 				Price:    decimal.NewFromInt(100),
@@ -333,8 +333,8 @@ func TestEntryUpdateOperator(t *testing.T) {
 			},
 		},
 		{
-			title:             "short - trigger & baseline trigger",
-			contractDirection: SHORT,
+			title: "short - trigger & baseline trigger",
+			side:  SHORT,
 			trigger: &trigger.Line{
 				Operator: ">=",
 				Time1:    time.Date(2021, 8, 27, 0, 15, 0, 0, time.UTC),
@@ -365,8 +365,8 @@ func TestEntryUpdateOperator(t *testing.T) {
 			},
 		},
 		{
-			title:             "short - trigger only",
-			contractDirection: SHORT,
+			title: "short - trigger only",
+			side:  SHORT,
 			trigger: &trigger.Line{
 				Operator: ">=",
 				Time1:    time.Date(2021, 8, 27, 0, 15, 0, 0, time.UTC),
@@ -389,13 +389,13 @@ func TestEntryUpdateOperator(t *testing.T) {
 			Trigger:         tc.trigger,
 			BaselineTrigger: tc.baselineTrigger,
 		}
-		entryOrder.UpdateOperator(tc.contractDirection)
+		entryOrder.FlipOperator(tc.side)
 
 		if !reflect.DeepEqual(tc.expectedTrigger, entryOrder.Trigger) {
-			t.Errorf("TestEntryUpdateOperator case '%s' - expect '%v', but got '%v'", tc.title, tc.expectedTrigger, entryOrder.Trigger)
+			t.Errorf("TestEntryFlipOperator case '%s' - expect '%v', but got '%v'", tc.title, tc.expectedTrigger, entryOrder.Trigger)
 		}
 		if !reflect.DeepEqual(tc.expectedBaselineTrigger, entryOrder.BaselineTrigger) {
-			t.Errorf("TestEntryUpdateOperator case '%s' - expect '%v', but got '%v'", tc.title, tc.expectedBaselineTrigger, entryOrder.BaselineTrigger)
+			t.Errorf("TestEntryFlipOperator case '%s' - expect '%v', but got '%v'", tc.title, tc.expectedBaselineTrigger, entryOrder.BaselineTrigger)
 		}
 	}
 }

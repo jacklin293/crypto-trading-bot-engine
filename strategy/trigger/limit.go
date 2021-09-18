@@ -9,8 +9,9 @@ import (
 
 // trigger_type: 'limit'
 type Limit struct {
-	Operator string // '>=' or '<=
-	Price    decimal.Decimal
+	TriggerType string          `json:"trigger_type"`
+	Operator    string          `json:"operator"` // '>=' or '<=
+	Price       decimal.Decimal `json:"price"`
 }
 
 // New limit trigger
@@ -23,16 +24,21 @@ func newLimit(data map[string]interface{}) (m *Limit, err error) {
 	if err = validateOperator(operator); err != nil {
 		return
 	}
-	p, ok := data["price"].(float64)
+	p, ok := data["price"].(string)
 	if !ok {
-		err = errors.New("'price' is missing or not a float")
+		err = errors.New("'price' is missing or not string")
 		return
 	}
-	price := decimal.NewFromFloat(p)
+	price, err := decimal.NewFromString(p)
+	if err != nil {
+		err = errors.New("'price' isn't a stringified number")
+		return
+	}
 
 	return &Limit{
-		Operator: operator,
-		Price:    price,
+		TriggerType: "limit",
+		Operator:    operator,
+		Price:       price,
 	}, nil
 }
 

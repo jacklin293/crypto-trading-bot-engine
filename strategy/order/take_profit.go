@@ -9,7 +9,7 @@ import (
 )
 
 type TakeProfit struct {
-	Trigger trigger.Trigger
+	Trigger trigger.Trigger `json:"trigger,omitempty"`
 }
 
 func NewTakeProfit(data map[string]interface{}) (*TakeProfit, error) {

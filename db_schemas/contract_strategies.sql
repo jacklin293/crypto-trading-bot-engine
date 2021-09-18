@@ -27,11 +27,11 @@ CREATE TABLE `contract_strategies` (
   `uuid` char(36) NOT NULL COMMENT 'uuid',
   `user_uuid` char(36) NOT NULL COMMENT 'User uuid',
   `symbol` varchar(20) NOT NULL COMMENT 'Symbol e.g. BTC-PERP',
-  `cost` decimal(18,8) unsigned NOT NULL COMMENT 'Cost',
-  `contract_direction` tinyint(4) unsigned NOT NULL COMMENT '1: long 0: short',
-  `contract_params` longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_bin NOT NULL DEFAULT '\'{}\'' COMMENT 'Contract params' CHECK (json_valid(`contract_params`)),
-  `enabled` tinyint(3) unsigned NOT NULL DEFAULT 0 COMMENT '1: enabled 0: disabled',
-  `position_status` tinyint(4) unsigned NOT NULL DEFAULT 0 COMMENT '2: unknown 1: opened 0: closed',
+  `margin` decimal(18,8) unsigned NOT NULL COMMENT 'Margin',
+  `side` tinyint(4) unsigned NOT NULL COMMENT '0: short 1: long',
+  `params` longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_bin NOT NULL DEFAULT '{}' COMMENT 'Params for entry, stop-loss and take-profit orders' CHECK (json_valid(`params`)),
+  `enabled` tinyint(3) unsigned NOT NULL DEFAULT 0 COMMENT '0: disabled 1: enabled',
+  `position_status` tinyint(4) unsigned NOT NULL DEFAULT 0 COMMENT ' 0: closed 1: opened 2: unknown',
   `exchange` varchar(20) NOT NULL COMMENT 'Exchange name e.g. FTX',
   `exchange_orders_details` longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_bin NOT NULL DEFAULT '\'{}\'' COMMENT 'Bespoke orders details by exchange' CHECK (json_valid(`exchange_orders_details`)),
   `last_position_at` datetime DEFAULT NULL COMMENT 'Last position created time',
@@ -54,4 +54,4 @@ CREATE TABLE `contract_strategies` (
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2021-09-17 22:35:13
+-- Dump completed on 2021-09-26 19:08:44
