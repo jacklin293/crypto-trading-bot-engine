@@ -11,6 +11,7 @@ import (
 )
 
 type testFeed struct {
+	// TODO make price and time as Mark
 	price         decimal.Decimal
 	time          time.Time
 	expectedHooks []string
@@ -25,49 +26,47 @@ func (th *testHook) resetFuncNames() {
 	th.funcNames = nil
 }
 
-func (th *testHook) EntryTriggered(c *Contract, t time.Time, p decimal.Decimal) (decimal.Decimal, error, bool) {
+func (th *testHook) EntryTriggered(c *Contract, t time.Time, p decimal.Decimal) (decimal.Decimal, bool, error) {
 	th.funcNames = append(th.funcNames, "EntryTriggered")
-	return p, nil, false
+	return p, false, nil
 }
 
-func (th *testHook) StopLossTriggerCreated(c *Contract) (error, bool) {
+func (th *testHook) StopLossTriggerCreated(c *Contract) (bool, error) {
 	th.funcNames = append(th.funcNames, "StopLossTriggerCreated")
-	return nil, false
+	return false, nil
 }
 
-func (th *testHook) StopLossTriggered(c *Contract, t time.Time, p decimal.Decimal) error {
+func (th *testHook) StopLossTriggered(c *Contract) (bool, error) {
 	th.funcNames = append(th.funcNames, "StopLossTriggered")
-	return nil
+	return false, nil
 }
 
 func (th *testHook) EntryBaselineTriggerUpdated(c *Contract) {
 	th.funcNames = append(th.funcNames, "EntryBaselineTriggerUpdated")
 }
 
-func (th *testHook) TakeProfitTriggered(c *Contract, t time.Time, p decimal.Decimal) error {
+func (th *testHook) TakeProfitTriggered(c *Contract) error {
 	th.funcNames = append(th.funcNames, "TakeProfitTriggered")
 	return nil
 }
 
-func (th *testHook) OrderTriggerUpdated(c *Contract) {
-}
-
-func (th *testHook) StatusChanged(c *Contract) {
+func (th *testHook) ParamsUpdated(c *Contract) (bool, error) {
+	return false, nil
 }
 
 // entry_type 'limit'
 func TestLimitAllOrders(t *testing.T) {
 	testcases := []struct {
-		title             string
-		contractDirection order.ContractDirection
-		takeProfitOrder   order.Order
-		entryOrder        order.Order
-		stopLossOrder     order.Order
-		feeds             []testFeed
+		title           string
+		side            order.Side
+		takeProfitOrder order.Order
+		entryOrder      order.Order
+		stopLossOrder   order.Order
+		feeds           []testFeed
 	}{
 		{
-			title:             "long - (breakout) with stop-loss and take-profit order",
-			contractDirection: order.LONG,
+			title: "long - (breakout) with stop-loss and take-profit order",
+			side:  order.LONG,
 			takeProfitOrder: &order.TakeProfit{Trigger: &trigger.Limit{
 				Operator: ">=",
 				Price:    decimal.NewFromFloat(48000),
@@ -94,8 +93,8 @@ func TestLimitAllOrders(t *testing.T) {
 			},
 		},
 		{
-			title:             "long - (breakout) without stop-loss and with take-profit order",
-			contractDirection: order.LONG,
+			title: "long - (breakout) without stop-loss and with take-profit order",
+			side:  order.LONG,
 			takeProfitOrder: &order.TakeProfit{Trigger: &trigger.Limit{
 				Operator: ">=",
 				Price:    decimal.NewFromFloat(48000),
@@ -114,8 +113,8 @@ func TestLimitAllOrders(t *testing.T) {
 			},
 		},
 		{
-			title:             "long - (breakout) with stop-loss and without take-profit order",
-			contractDirection: order.LONG,
+			title: "long - (breakout) with stop-loss and without take-profit order",
+			side:  order.LONG,
 			entryOrder: &order.Entry{Trigger: &trigger.Limit{
 				Operator: ">=",
 				Price:    decimal.NewFromFloat(47000),
@@ -136,8 +135,8 @@ func TestLimitAllOrders(t *testing.T) {
 			},
 		},
 		{
-			title:             "long - (breakout) without stop-loss and take-profit order",
-			contractDirection: order.LONG,
+			title: "long - (breakout) without stop-loss and take-profit order",
+			side:  order.LONG,
 			entryOrder: &order.Entry{Trigger: &trigger.Limit{
 				Operator: ">=",
 				Price:    decimal.NewFromFloat(47000),
@@ -151,8 +150,8 @@ func TestLimitAllOrders(t *testing.T) {
 			},
 		},
 		{
-			title:             "short - (breakout) with stop-loss and take-profit order",
-			contractDirection: order.SHORT,
+			title: "short - (breakout) with stop-loss and take-profit order",
+			side:  order.SHORT,
 			stopLossOrder: &order.StopLoss{Trigger: &trigger.Limit{
 				Operator: ">=",
 				Price:    decimal.NewFromFloat(48000),
@@ -178,8 +177,8 @@ func TestLimitAllOrders(t *testing.T) {
 			},
 		},
 		{
-			title:             "short - (breakout) without stop-loss and with take-profit order",
-			contractDirection: order.SHORT,
+			title: "short - (breakout) without stop-loss and with take-profit order",
+			side:  order.SHORT,
 			entryOrder: &order.Entry{Trigger: &trigger.Limit{
 				Operator: "<=",
 				Price:    decimal.NewFromFloat(47000),
@@ -198,8 +197,8 @@ func TestLimitAllOrders(t *testing.T) {
 			},
 		},
 		{
-			title:             "short - (breakout) with stop-loss and without take-profit order",
-			contractDirection: order.SHORT,
+			title: "short - (breakout) with stop-loss and without take-profit order",
+			side:  order.SHORT,
 			stopLossOrder: &order.StopLoss{Trigger: &trigger.Limit{
 				Operator: ">=",
 				Price:    decimal.NewFromFloat(48000),
@@ -220,8 +219,8 @@ func TestLimitAllOrders(t *testing.T) {
 			},
 		},
 		{
-			title:             "short - (breakout) without stop-loss and take-profit order",
-			contractDirection: order.SHORT,
+			title: "short - (breakout) without stop-loss and take-profit order",
+			side:  order.SHORT,
 			entryOrder: &order.Entry{Trigger: &trigger.Limit{
 				Operator: "<=",
 				Price:    decimal.NewFromFloat(47000),
@@ -238,17 +237,17 @@ func TestLimitAllOrders(t *testing.T) {
 
 	for _, tc := range testcases {
 		c := &Contract{
-			ContractDirection: tc.contractDirection,
-			EntryType:         order.ENTRY_LIMIT,
-			EntryOrder:        tc.entryOrder,
-			TakeProfitOrder:   tc.takeProfitOrder,
-			StopLossOrder:     tc.stopLossOrder,
+			Side:            tc.side,
+			EntryType:       order.ENTRY_LIMIT,
+			EntryOrder:      tc.entryOrder,
+			TakeProfitOrder: tc.takeProfitOrder,
+			StopLossOrder:   tc.stopLossOrder,
 		}
 		h := &testHook{}
 		c.SetHook(h)
 
 		for i, feed := range tc.feeds {
-			c.CheckPrice(feed.time, feed.price)
+			c.CheckPrice(Mark{Time: feed.time, Price: feed.price})
 			if !reflect.DeepEqual(feed.expectedHooks, h.funcNames) {
 				t.Errorf("TestLimitAllOrders case '%s' (%d) - expect '%v', but got '%v'", tc.title, i, feed.expectedHooks, h.funcNames)
 			}
@@ -262,7 +261,6 @@ func TestLimitAllOrders(t *testing.T) {
 /*
 LONG
 {
-  "contract_direction": 1,
   "entry_type": "baseline",
   "entry_order": {
     "baseline_trigger": {
@@ -312,7 +310,6 @@ StopLossTriggerCreated    stop-loss: 44040.64  <=
 
 SHORT
 {
-  "contract_direction": 0,
   "entry_type": "baseline",
   "entry_order": {
     "baseline_trigger": {
@@ -352,16 +349,16 @@ StopLossTriggerCreated    stop-loss: 46234.89  >=
 */
 func TestBaselineAllOrders(t *testing.T) {
 	testcases := []struct {
-		title             string
-		contractDirection order.ContractDirection
-		takeProfitOrder   order.Order
-		entryData         map[string]interface{}
-		stopLossOrder     order.Order
-		feeds             []testFeed
+		title           string
+		side            order.Side
+		takeProfitOrder order.Order
+		entryData       map[string]interface{}
+		stopLossOrder   order.Order
+		feeds           []testFeed
 	}{
 		{
-			title:             "long - (breakout) with stop-loss and take-profit order",
-			contractDirection: order.LONG,
+			title: "long - (breakout) with stop-loss and take-profit order",
+			side:  order.LONG,
 			takeProfitOrder: &order.TakeProfit{Trigger: &trigger.Limit{
 				Operator: ">=",
 				Price:    decimal.NewFromFloat(46300),
@@ -370,10 +367,10 @@ func TestBaselineAllOrders(t *testing.T) {
 				"baseline_trigger": map[string]interface{}{
 					"trigger_type": "line",
 					"operator":     ">=",
-					"time_1":       "2021-08-17 11:45:00",
-					"price_1":      47160.0, // must be float
-					"time_2":       "2021-08-18 10:00:00",
-					"price_2":      45560.0,
+					"time_1":       "2021-08-17T11:45:00Z",
+					"price_1":      "47160.0",
+					"time_2":       "2021-08-18T10:00:00Z",
+					"price_2":      "45560.0",
 				},
 				"baseline_offset_percent": 0.01,
 			},
@@ -397,8 +394,8 @@ func TestBaselineAllOrders(t *testing.T) {
 			},
 		},
 		{
-			title:             "long - (breakout) without stop-loss and with take-profit order",
-			contractDirection: order.LONG,
+			title: "long - (breakout) without stop-loss and with take-profit order",
+			side:  order.LONG,
 			takeProfitOrder: &order.TakeProfit{Trigger: &trigger.Limit{
 				Operator: ">=",
 				Price:    decimal.NewFromFloat(46300),
@@ -407,10 +404,10 @@ func TestBaselineAllOrders(t *testing.T) {
 				"baseline_trigger": map[string]interface{}{
 					"trigger_type": "line",
 					"operator":     ">=",
-					"time_1":       "2021-08-17 11:45:00",
-					"price_1":      47160.0, // must be float
-					"time_2":       "2021-08-18 10:00:00",
-					"price_2":      45560.0,
+					"time_1":       "2021-08-17T11:45:00Z",
+					"price_1":      "47160",
+					"time_2":       "2021-08-18T10:00:00Z",
+					"price_2":      "45560",
 				},
 				"baseline_offset_percent": 0.01,
 			},
@@ -425,16 +422,16 @@ func TestBaselineAllOrders(t *testing.T) {
 			},
 		},
 		{
-			title:             "long - (breakout) with stop-loss and without take-profit order",
-			contractDirection: order.LONG,
+			title: "long - (breakout) with stop-loss and without take-profit order",
+			side:  order.LONG,
 			entryData: map[string]interface{}{
 				"baseline_trigger": map[string]interface{}{
 					"trigger_type": "line",
 					"operator":     ">=",
-					"time_1":       "2021-08-17 11:45:00",
-					"price_1":      47160.0, // must be float
-					"time_2":       "2021-08-18 10:00:00",
-					"price_2":      45560.0,
+					"time_1":       "2021-08-17T11:45:00Z",
+					"price_1":      "47160",
+					"time_2":       "2021-08-18T10:00:00Z",
+					"price_2":      "45560",
 				},
 				"baseline_offset_percent": 0.01,
 			},
@@ -459,16 +456,16 @@ func TestBaselineAllOrders(t *testing.T) {
 			},
 		},
 		{
-			title:             "long - (breakout) without stop-loss and take-profit order",
-			contractDirection: order.LONG,
+			title: "long - (breakout) without stop-loss and take-profit order",
+			side:  order.LONG,
 			entryData: map[string]interface{}{
 				"baseline_trigger": map[string]interface{}{
 					"trigger_type": "line",
 					"operator":     ">=",
-					"time_1":       "2021-08-17 11:45:00",
-					"price_1":      47160.0, // must be float
-					"time_2":       "2021-08-18 10:00:00",
-					"price_2":      45560.0,
+					"time_1":       "2021-08-17T11:45:00Z",
+					"price_1":      "47160",
+					"time_2":       "2021-08-18T10:00:00Z",
+					"price_2":      "45560",
 				},
 				"baseline_offset_percent": 0.01,
 			},
@@ -482,8 +479,8 @@ func TestBaselineAllOrders(t *testing.T) {
 			},
 		},
 		{
-			title:             "short - (breakout) with stop-loss and take-profit order",
-			contractDirection: order.SHORT,
+			title: "short - (breakout) with stop-loss and take-profit order",
+			side:  order.SHORT,
 			stopLossOrder: &order.StopLoss{
 				BaselineReadjustmentEnabled: false,
 				LossTolerancePercent:        0.01,
@@ -492,10 +489,10 @@ func TestBaselineAllOrders(t *testing.T) {
 				"baseline_trigger": map[string]interface{}{
 					"trigger_type": "line",
 					"operator":     "<=",
-					"time_1":       "2021-08-09 01:15:00",
-					"price_1":      42779.0,
-					"time_2":       "2021-08-10 16:30:00",
-					"price_2":      44589.46,
+					"time_1":       "2021-08-09T01:15:00Z",
+					"price_1":      "42779",
+					"time_2":       "2021-08-10T16:30:00Z",
+					"price_2":      "44589.46",
 				},
 				"baseline_offset_percent": 0.01,
 			},
@@ -515,16 +512,16 @@ func TestBaselineAllOrders(t *testing.T) {
 			},
 		},
 		{
-			title:             "short - (breakout) without stop-loss and with take-profit order",
-			contractDirection: order.SHORT,
+			title: "short - (breakout) without stop-loss and with take-profit order",
+			side:  order.SHORT,
 			entryData: map[string]interface{}{
 				"baseline_trigger": map[string]interface{}{
 					"trigger_type": "line",
 					"operator":     "<=",
-					"time_1":       "2021-08-09 01:15:00",
-					"price_1":      42779.0,
-					"time_2":       "2021-08-10 16:30:00",
-					"price_2":      44589.46,
+					"time_1":       "2021-08-09T01:15:00Z",
+					"price_1":      "42779",
+					"time_2":       "2021-08-10T16:30:00Z",
+					"price_2":      "44589.46",
 				},
 				"baseline_offset_percent": 0.01,
 			},
@@ -544,8 +541,8 @@ func TestBaselineAllOrders(t *testing.T) {
 			},
 		},
 		{
-			title:             "short - (breakout) with stop-loss and without take-profit order",
-			contractDirection: order.SHORT,
+			title: "short - (breakout) with stop-loss and without take-profit order",
+			side:  order.SHORT,
 			stopLossOrder: &order.StopLoss{
 				BaselineReadjustmentEnabled: false,
 				LossTolerancePercent:        0.01,
@@ -554,10 +551,10 @@ func TestBaselineAllOrders(t *testing.T) {
 				"baseline_trigger": map[string]interface{}{
 					"trigger_type": "line",
 					"operator":     "<=",
-					"time_1":       "2021-08-09 01:15:00",
-					"price_1":      42779.0,
-					"time_2":       "2021-08-10 16:30:00",
-					"price_2":      44589.46,
+					"time_1":       "2021-08-09T01:15:00Z",
+					"price_1":      "42779",
+					"time_2":       "2021-08-10T16:30:00Z",
+					"price_2":      "44589.46",
 				},
 				"baseline_offset_percent": 0.01,
 			},
@@ -574,16 +571,16 @@ func TestBaselineAllOrders(t *testing.T) {
 			},
 		},
 		{
-			title:             "short - (breakout) without stop-loss and take-profit order",
-			contractDirection: order.SHORT,
+			title: "short - (breakout) without stop-loss and take-profit order",
+			side:  order.SHORT,
 			entryData: map[string]interface{}{
 				"baseline_trigger": map[string]interface{}{
 					"trigger_type": "line",
 					"operator":     "<=",
-					"time_1":       "2021-08-09 01:15:00",
-					"price_1":      42779.0,
-					"time_2":       "2021-08-10 16:30:00",
-					"price_2":      44589.46,
+					"time_1":       "2021-08-09T01:15:00Z",
+					"price_1":      "42779",
+					"time_2":       "2021-08-10T16:30:00Z",
+					"price_2":      "44589.46",
 				},
 				"baseline_offset_percent": 0.01,
 			},
@@ -598,23 +595,23 @@ func TestBaselineAllOrders(t *testing.T) {
 
 	for _, tc := range testcases {
 		// Entry order has its process when it initialises
-		entryOrder, err := order.NewEntry(tc.contractDirection, "baseline", tc.entryData)
+		entryOrder, err := order.NewEntry(tc.side, "baseline", tc.entryData)
 		if err != nil {
 			t.Error("TestBaselineAllOrders ", err)
 			continue
 		}
 		c := &Contract{
-			ContractDirection: tc.contractDirection,
-			EntryType:         "baseline",
-			EntryOrder:        entryOrder,
-			TakeProfitOrder:   tc.takeProfitOrder,
-			StopLossOrder:     tc.stopLossOrder,
+			Side:            tc.side,
+			EntryType:       "baseline",
+			EntryOrder:      entryOrder,
+			TakeProfitOrder: tc.takeProfitOrder,
+			StopLossOrder:   tc.stopLossOrder,
 		}
 		h := &testHook{}
 		c.SetHook(h)
 
 		for i, feed := range tc.feeds {
-			c.CheckPrice(feed.time, feed.price)
+			c.CheckPrice(Mark{Time: feed.time, Price: feed.price})
 			if !reflect.DeepEqual(feed.expectedHooks, h.funcNames) {
 				t.Errorf("TestBaselineAllOrders case '%s' (%d) - expect '%v', but got '%v'", tc.title, i, feed.expectedHooks, h.funcNames)
 			}
@@ -627,24 +624,24 @@ func TestBaselineAllOrders(t *testing.T) {
 // entry_type 'baseline'
 func TestBaselineOffsetAndLossTolerancePercent(t *testing.T) {
 	testcases := []struct {
-		title             string
-		contractDirection order.ContractDirection
-		takeProfitOrder   order.Order
-		entryData         map[string]interface{}
-		stopLossOrder     order.Order
-		feeds             []testFeed
+		title           string
+		side            order.Side
+		takeProfitOrder order.Order
+		entryData       map[string]interface{}
+		stopLossOrder   order.Order
+		feeds           []testFeed
 	}{
 		{
-			title:             "long - +0.01 / 0.01",
-			contractDirection: order.LONG,
+			title: "long - +0.01 / 0.01",
+			side:  order.LONG,
 			entryData: map[string]interface{}{
 				"baseline_trigger": map[string]interface{}{
 					"trigger_type": "line",
 					"operator":     ">=",
-					"time_1":       "2021-08-17 11:45:00",
-					"price_1":      47160.0, // must be float
-					"time_2":       "2021-08-18 10:00:00",
-					"price_2":      45560.0,
+					"time_1":       "2021-08-17T11:45:00Z",
+					"price_1":      "47160",
+					"time_2":       "2021-08-18T10:00:00Z",
+					"price_2":      "45560",
 				},
 				"baseline_offset_percent": 0.01,
 			},
@@ -665,16 +662,16 @@ func TestBaselineOffsetAndLossTolerancePercent(t *testing.T) {
 			},
 		},
 		{
-			title:             "long - -0.01 / 0.02",
-			contractDirection: order.LONG,
+			title: "long - -0.01 / 0.02",
+			side:  order.LONG,
 			entryData: map[string]interface{}{
 				"baseline_trigger": map[string]interface{}{
 					"trigger_type": "line",
 					"operator":     ">=",
-					"time_1":       "2021-08-17 11:45:00",
-					"price_1":      47160.0, // must be float
-					"time_2":       "2021-08-18 10:00:00",
-					"price_2":      45560.0,
+					"time_1":       "2021-08-17T11:45:00Z",
+					"price_1":      "47160",
+					"time_2":       "2021-08-18T10:00:00Z",
+					"price_2":      "45560",
 				},
 				"baseline_offset_percent": -0.01,
 			},
@@ -695,16 +692,16 @@ func TestBaselineOffsetAndLossTolerancePercent(t *testing.T) {
 			},
 		},
 		{
-			title:             "short - +0.01 / 0.01",
-			contractDirection: order.SHORT,
+			title: "short - +0.01 / 0.01",
+			side:  order.SHORT,
 			entryData: map[string]interface{}{
 				"baseline_trigger": map[string]interface{}{
 					"trigger_type": "line",
 					"operator":     "<=",
-					"time_1":       "2021-08-17 11:45:00",
-					"price_1":      47160.0, // must be float
-					"time_2":       "2021-08-18 10:00:00",
-					"price_2":      49560.0,
+					"time_1":       "2021-08-17T11:45:00Z",
+					"price_1":      "47160",
+					"time_2":       "2021-08-18T10:00:00Z",
+					"price_2":      "49560",
 				},
 				"baseline_offset_percent": 0.01,
 			},
@@ -725,16 +722,16 @@ func TestBaselineOffsetAndLossTolerancePercent(t *testing.T) {
 			},
 		},
 		{
-			title:             "short - -0.01 / 0.02",
-			contractDirection: order.SHORT,
+			title: "short - -0.01 / 0.02",
+			side:  order.SHORT,
 			entryData: map[string]interface{}{
 				"baseline_trigger": map[string]interface{}{
 					"trigger_type": "line",
 					"operator":     "<=",
-					"time_1":       "2021-08-17 11:45:00",
-					"price_1":      47160.0, // must be float
-					"time_2":       "2021-08-18 10:00:00",
-					"price_2":      49560.0,
+					"time_1":       "2021-08-17T11:45:00Z",
+					"price_1":      "47160",
+					"time_2":       "2021-08-18T10:00:00Z",
+					"price_2":      "49560",
 				},
 				"baseline_offset_percent": -0.01,
 			},
@@ -758,22 +755,22 @@ func TestBaselineOffsetAndLossTolerancePercent(t *testing.T) {
 
 	for _, tc := range testcases {
 		// Entry order has its process when it initialises
-		entryOrder, err := order.NewEntry(tc.contractDirection, "baseline", tc.entryData)
+		entryOrder, err := order.NewEntry(tc.side, "baseline", tc.entryData)
 		if err != nil {
 			t.Error("TestBaselineOffsetAndLossTolerancePercent ", err)
 			continue
 		}
 		c := &Contract{
-			ContractDirection: tc.contractDirection,
-			EntryType:         order.ENTRY_BASELINE,
-			EntryOrder:        entryOrder,
-			StopLossOrder:     tc.stopLossOrder,
+			Side:          tc.side,
+			EntryType:     order.ENTRY_BASELINE,
+			EntryOrder:    entryOrder,
+			StopLossOrder: tc.stopLossOrder,
 		}
 		h := &testHook{}
 		c.SetHook(h)
 
 		for i, feed := range tc.feeds {
-			c.CheckPrice(feed.time, feed.price)
+			c.CheckPrice(Mark{Time: feed.time, Price: feed.price})
 			if !reflect.DeepEqual(feed.expectedHooks, h.funcNames) {
 				t.Errorf("TestBaselineOffsetAndLossTolerancePercent case '%s' (%d) - expect '%v', but got '%v'", tc.title, i, feed.expectedHooks, h.funcNames)
 			}
@@ -785,16 +782,16 @@ func TestBaselineOffsetAndLossTolerancePercent(t *testing.T) {
 
 func TestLimitFlipOperatorEnabled(t *testing.T) {
 	testcases := []struct {
-		title             string
-		contractDirection order.ContractDirection
-		takeProfitOrder   order.Order
-		entryOrder        order.Order
-		stopLossOrder     order.Order
-		feeds             []testFeed
+		title           string
+		side            order.Side
+		takeProfitOrder order.Order
+		entryOrder      order.Order
+		stopLossOrder   order.Order
+		feeds           []testFeed
 	}{
 		{
-			title:             "long - (buy the dip) with stop-loss and take-profit order",
-			contractDirection: order.LONG,
+			title: "long - (buy the dip) with stop-loss and take-profit order",
+			side:  order.LONG,
 			takeProfitOrder: &order.TakeProfit{Trigger: &trigger.Limit{
 				Operator: ">=",
 				Price:    decimal.NewFromFloat(48000),
@@ -828,8 +825,8 @@ func TestLimitFlipOperatorEnabled(t *testing.T) {
 			},
 		},
 		{
-			title:             "short - (buy the dip) with stop-loss and take-profit order",
-			contractDirection: order.SHORT,
+			title: "short - (buy the dip) with stop-loss and take-profit order",
+			side:  order.SHORT,
 			stopLossOrder: &order.StopLoss{Trigger: &trigger.Limit{
 				Operator: ">=",
 				Price:    decimal.NewFromFloat(48000),
@@ -866,17 +863,17 @@ func TestLimitFlipOperatorEnabled(t *testing.T) {
 
 	for _, tc := range testcases {
 		c := &Contract{
-			ContractDirection: tc.contractDirection,
-			EntryType:         order.ENTRY_LIMIT,
-			EntryOrder:        tc.entryOrder,
-			TakeProfitOrder:   tc.takeProfitOrder,
-			StopLossOrder:     tc.stopLossOrder,
+			Side:            tc.side,
+			EntryType:       order.ENTRY_LIMIT,
+			EntryOrder:      tc.entryOrder,
+			TakeProfitOrder: tc.takeProfitOrder,
+			StopLossOrder:   tc.stopLossOrder,
 		}
 		h := &testHook{}
 		c.SetHook(h)
 
 		for i, feed := range tc.feeds {
-			c.CheckPrice(feed.time, feed.price)
+			c.CheckPrice(Mark{Time: feed.time, Price: feed.price})
 			if !reflect.DeepEqual(feed.expectedHooks, h.funcNames) {
 				t.Errorf("TestLimitFlipOperatorEnabled case '%s' (%d) - expect '%v', but got '%v'", tc.title, i, feed.expectedHooks, h.funcNames)
 			}
@@ -888,16 +885,16 @@ func TestLimitFlipOperatorEnabled(t *testing.T) {
 
 func TestBaselineFlipOperatorEnabled(t *testing.T) {
 	testcases := []struct {
-		title             string
-		contractDirection order.ContractDirection
-		takeProfitOrder   order.Order
-		entryData         map[string]interface{}
-		stopLossOrder     order.Order
-		feeds             []testFeed
+		title           string
+		side            order.Side
+		takeProfitOrder order.Order
+		entryData       map[string]interface{}
+		stopLossOrder   order.Order
+		feeds           []testFeed
 	}{
 		{
-			title:             "long - (parallel channel, buy the dip) with stop-loss and take-profit order",
-			contractDirection: order.LONG,
+			title: "long - (parallel channel, buy the dip) with stop-loss and take-profit order",
+			side:  order.LONG,
 			takeProfitOrder: &order.TakeProfit{Trigger: &trigger.Line{
 				Operator: ">=",
 				Time1:    time.Date(2021, 8, 20, 12, 45, 0, 0, time.UTC),
@@ -909,10 +906,10 @@ func TestBaselineFlipOperatorEnabled(t *testing.T) {
 				"baseline_trigger": map[string]interface{}{
 					"trigger_type": "line",
 					"operator":     "<=",
-					"time_1":       "2021-08-20 12:45:00",
-					"price_1":      46909.6,
-					"time_2":       "2021-08-21 11:00:00",
-					"price_2":      48217.18,
+					"time_1":       "2021-08-20T12:45:00Z",
+					"price_1":      "46909.6",
+					"time_2":       "2021-08-21T11:00:00Z",
+					"price_2":      "48217.18",
 				},
 				"baseline_offset_percent": 0.01,
 				"flip_operator_enabled":   true,
@@ -945,16 +942,16 @@ func TestBaselineFlipOperatorEnabled(t *testing.T) {
 			},
 		},
 		{
-			title:             "long - (parallel channel, buy the dip) without stop-loss and take-profit order",
-			contractDirection: order.LONG,
+			title: "long - (parallel channel, buy the dip) without stop-loss and take-profit order",
+			side:  order.LONG,
 			entryData: map[string]interface{}{
 				"baseline_trigger": map[string]interface{}{
 					"trigger_type": "line",
 					"operator":     "<=",
-					"time_1":       "2021-08-20 12:45:00",
-					"price_1":      46909.6,
-					"time_2":       "2021-08-21 11:00:00",
-					"price_2":      48217.18,
+					"time_1":       "2021-08-20T12:45:00Z",
+					"price_1":      "46909.6",
+					"time_2":       "2021-08-21T11:00:00Z",
+					"price_2":      "48217.18",
 				},
 				"baseline_offset_percent": 0.01,
 				"flip_operator_enabled":   true,
@@ -967,8 +964,8 @@ func TestBaselineFlipOperatorEnabled(t *testing.T) {
 			},
 		},
 		{
-			title:             "short - (parallel channel, buy the dip) with stop-loss and take-profit order",
-			contractDirection: order.SHORT,
+			title: "short - (parallel channel, buy the dip) with stop-loss and take-profit order",
+			side:  order.SHORT,
 			stopLossOrder: &order.StopLoss{
 				BaselineReadjustmentEnabled: false,
 				LossTolerancePercent:        0.01,
@@ -977,10 +974,10 @@ func TestBaselineFlipOperatorEnabled(t *testing.T) {
 				"baseline_trigger": map[string]interface{}{
 					"trigger_type": "line",
 					"operator":     ">=",
-					"time_1":       "2021-08-12 03:30:00",
-					"price_1":      46214.0,
-					"time_2":       "2021-08-12 20:30:00",
-					"price_2":      44500.0,
+					"time_1":       "2021-08-12T03:30:00Z",
+					"price_1":      "46214",
+					"time_2":       "2021-08-12T20:30:00Z",
+					"price_2":      "44500",
 				},
 				"baseline_offset_percent": 0.01,
 				"flip_operator_enabled":   true,
@@ -1018,16 +1015,16 @@ func TestBaselineFlipOperatorEnabled(t *testing.T) {
 			},
 		},
 		{
-			title:             "short - (parallel channel, buy the dip) without stop-loss and take-profit order",
-			contractDirection: order.SHORT,
+			title: "short - (parallel channel, buy the dip) without stop-loss and take-profit order",
+			side:  order.SHORT,
 			entryData: map[string]interface{}{
 				"baseline_trigger": map[string]interface{}{
 					"trigger_type": "line",
 					"operator":     ">=",
-					"time_1":       "2021-08-12 03:30:00",
-					"price_1":      46214.0,
-					"time_2":       "2021-08-12 20:30:00",
-					"price_2":      44500.0,
+					"time_1":       "2021-08-12T03:30:00Z",
+					"price_1":      "46214",
+					"time_2":       "2021-08-12T20:30:00Z",
+					"price_2":      "44500",
 				},
 				"baseline_offset_percent": 0.01,
 				"flip_operator_enabled":   true,
@@ -1043,23 +1040,23 @@ func TestBaselineFlipOperatorEnabled(t *testing.T) {
 
 	for _, tc := range testcases {
 		// Entry order has its process when it initialises
-		entryOrder, err := order.NewEntry(tc.contractDirection, "baseline", tc.entryData)
+		entryOrder, err := order.NewEntry(tc.side, "baseline", tc.entryData)
 		if err != nil {
 			t.Error("TestBaselineFlipOperatorEnabled ", err)
 			continue
 		}
 		c := &Contract{
-			ContractDirection: tc.contractDirection,
-			EntryType:         order.ENTRY_BASELINE,
-			TakeProfitOrder:   tc.takeProfitOrder,
-			EntryOrder:        entryOrder,
-			StopLossOrder:     tc.stopLossOrder,
+			Side:            tc.side,
+			EntryType:       order.ENTRY_BASELINE,
+			TakeProfitOrder: tc.takeProfitOrder,
+			EntryOrder:      entryOrder,
+			StopLossOrder:   tc.stopLossOrder,
 		}
 		h := &testHook{}
 		c.SetHook(h)
 
 		for i, feed := range tc.feeds {
-			c.CheckPrice(feed.time, feed.price)
+			c.CheckPrice(Mark{Time: feed.time, Price: feed.price})
 			if !reflect.DeepEqual(feed.expectedHooks, h.funcNames) {
 				t.Errorf("TestBaselineFlipOperatorEnabled case '%s' (%d) - expect '%v', but got '%v'", tc.title, i, feed.expectedHooks, h.funcNames)
 			}
@@ -1074,7 +1071,6 @@ func TestBaselineReadjustmentTrue(t *testing.T) {
 	// Short
 	/*
 		{
-		  "contract_direction": 0,
 		  "entry_type": "baseline",
 		  "entry_order": {
 			"baseline_trigger": {
@@ -1127,16 +1123,16 @@ func TestBaselineReadjustmentTrue(t *testing.T) {
 		'btcusdt future_contract' $1000 => $1009 (0.9%) (2021-08-01 ~ 2021-08-31) 428.581825ms
 	*/
 	testcases := []struct {
-		title             string
-		contractDirection order.ContractDirection
-		takeProfitOrder   order.Order
-		entryData         map[string]interface{}
-		stopLossOrder     order.Order
-		feeds             []testFeed
+		title           string
+		side            order.Side
+		takeProfitOrder order.Order
+		entryData       map[string]interface{}
+		stopLossOrder   order.Order
+		feeds           []testFeed
 	}{
 		{
-			title:             "long - baseline_readjustment_enabled 'true', p1 > p2, p1 < p2",
-			contractDirection: order.LONG,
+			title: "long - baseline_readjustment_enabled 'true', p1 > p2, p1 < p2",
+			side:  order.LONG,
 			takeProfitOrder: &order.TakeProfit{Trigger: &trigger.Limit{
 				Operator: ">=",
 				Price:    decimal.NewFromFloat(50000),
@@ -1145,10 +1141,10 @@ func TestBaselineReadjustmentTrue(t *testing.T) {
 				"baseline_trigger": map[string]interface{}{
 					"trigger_type": "line",
 					"operator":     ">=",
-					"time_1":       "2021-08-16 03:00:00",
-					"price_1":      48053.83,
-					"time_2":       "2021-08-17 11:45:00",
-					"price_2":      47160.0,
+					"time_1":       "2021-08-16T03:00:00Z",
+					"price_1":      "48053.83",
+					"time_2":       "2021-08-17T11:45:00Z",
+					"price_2":      "47160",
 				},
 				"baseline_offset_percent": 0.01,
 			},
@@ -1185,8 +1181,8 @@ func TestBaselineReadjustmentTrue(t *testing.T) {
 			},
 		},
 		{
-			title:             "short - baseline_readjustment_enabled 'true', p1 < p2, p1 > p2",
-			contractDirection: order.SHORT,
+			title: "short - baseline_readjustment_enabled 'true', p1 < p2, p1 > p2",
+			side:  order.SHORT,
 			stopLossOrder: &order.StopLoss{
 				BaselineReadjustmentEnabled: true,
 				LossTolerancePercent:        0.01,
@@ -1195,10 +1191,10 @@ func TestBaselineReadjustmentTrue(t *testing.T) {
 				"baseline_trigger": map[string]interface{}{
 					"trigger_type": "line",
 					"operator":     "<=",
-					"time_1":       "2021-08-09 01:15:00",
-					"price_1":      42779.0,
-					"time_2":       "2021-08-10 16:30:00",
-					"price_2":      44589.46,
+					"time_1":       "2021-08-09T01:15:00Z",
+					"price_1":      "42779",
+					"time_2":       "2021-08-10T16:30:00Z",
+					"price_2":      "44589.46",
 				},
 				"baseline_offset_percent": 0.01,
 			},
@@ -1242,22 +1238,22 @@ func TestBaselineReadjustmentTrue(t *testing.T) {
 
 	for _, tc := range testcases {
 		// Entry order has its process when it initialises
-		entryOrder, err := order.NewEntry(tc.contractDirection, order.ENTRY_BASELINE, tc.entryData)
+		entryOrder, err := order.NewEntry(tc.side, order.ENTRY_BASELINE, tc.entryData)
 		if err != nil {
 			t.Error("TestBaselineReadjustment ", err)
 			continue
 		}
 		c := &Contract{
-			ContractDirection: tc.contractDirection,
-			EntryType:         order.ENTRY_BASELINE,
-			EntryOrder:        entryOrder,
-			TakeProfitOrder:   tc.takeProfitOrder,
-			StopLossOrder:     tc.stopLossOrder,
+			Side:            tc.side,
+			EntryType:       order.ENTRY_BASELINE,
+			EntryOrder:      entryOrder,
+			TakeProfitOrder: tc.takeProfitOrder,
+			StopLossOrder:   tc.stopLossOrder,
 		}
 		h := &testHook{}
 		c.SetHook(h)
 		for i, feed := range tc.feeds {
-			c.CheckPrice(feed.time, feed.price)
+			c.CheckPrice(Mark{Time: feed.time, Price: feed.price})
 			if !reflect.DeepEqual(feed.expectedHooks, h.funcNames) {
 				t.Errorf("TestBaselineReadjustment case '%s' (%d) - expect '%v', but got '%v'", tc.title, i, feed.expectedHooks, h.funcNames)
 			}

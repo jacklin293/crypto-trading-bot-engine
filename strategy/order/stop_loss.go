@@ -9,9 +9,9 @@ import (
 )
 
 type StopLoss struct {
-	Trigger                     trigger.Trigger
-	BaselineReadjustmentEnabled bool
-	LossTolerancePercent        float64
+	Trigger                     trigger.Trigger `json:"trigger,omitempty"`
+	BaselineReadjustmentEnabled bool            `json:"baseline_readjustment_enabled,omitempty"`
+	LossTolerancePercent        float64         `json:"loss_tolerance_percent,omitempty"`
 }
 
 func NewStopLoss(entryType string, data map[string]interface{}) (*StopLoss, error) {
@@ -31,7 +31,24 @@ func NewStopLoss(entryType string, data map[string]interface{}) (*StopLoss, erro
 		}
 		o.Trigger = tt
 	case ENTRY_BASELINE:
-		var ok bool
+		// NOTE Context:
+		//      Originally, for contract status 'CLOSED', only entry_type 'limit' needs to new 'Trigger'
+		//      , as the 'Trigger' of 'baseline' will be set in runtime during 'contract.CheckPrice'
+		//      When the runner restarts, it needs to get set with the 'Trigger' data from DB.
+		//      In order to reduce the complexity, there is no check for distinguishing between 'OPENED' or 'CLOSED'
+		//      and an extra work to refill 'Trigger' when contract status is 'OPENED'.
+		//      'Trigger' will always be set anyway as long as it exists
+		//      , it won't cause any issues for 'baseline' as the 'Trigger' will be overridden by 'contract.CheckPrice.setStopLossTrigger' when Entry triggered
+		t, ok := data["trigger"].(map[string]interface{})
+		if ok {
+			var tt trigger.Trigger
+			tt, err = trigger.NewTrigger(t)
+			if err != nil {
+				return &o, err
+			}
+			o.Trigger = tt
+		}
+
 		var p float64
 		p, ok = data["loss_tolerance_percent"].(float64)
 		if !ok {
@@ -69,18 +86,21 @@ func (o *StopLoss) IsTriggered(t time.Time, p decimal.Decimal) bool {
 	return trigger.IsTriggeredBySingleTrigger(o.Trigger, t, p)
 }
 
-func (o *StopLoss) UpdateTriggerByLossPercent(contractDirection ContractDirection, baselinePrice decimal.Decimal) {
+func (o *StopLoss) UpdateTriggerByLossPercent(side Side, baselinePrice decimal.Decimal) {
 	var t trigger.Trigger
-	switch contractDirection {
+	switch side {
 	case LONG:
+		// TODO new Limit trigger
 		t = &trigger.Limit{
-			Operator: "<=",
-			Price:    baselinePrice.Mul(decimal.NewFromFloat(1 - o.LossTolerancePercent)),
+			TriggerType: "limit",
+			Operator:    "<=",
+			Price:       baselinePrice.Mul(decimal.NewFromFloat(1 - o.LossTolerancePercent)),
 		}
 	case SHORT:
 		t = &trigger.Limit{
-			Operator: ">=",
-			Price:    baselinePrice.Mul(decimal.NewFromFloat(1 + o.LossTolerancePercent)),
+			TriggerType: "limit",
+			Operator:    ">=",
+			Price:       baselinePrice.Mul(decimal.NewFromFloat(1 + o.LossTolerancePercent)),
 		}
 	}
 	o.Trigger = t

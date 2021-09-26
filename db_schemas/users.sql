@@ -25,12 +25,11 @@ DROP TABLE IF EXISTS `users`;
 CREATE TABLE `users` (
   `id` int(10) unsigned NOT NULL AUTO_INCREMENT COMMENT 'AI id',
   `uuid` char(36) NOT NULL COMMENT 'UUID',
-  `telegram_chat_id` text DEFAULT NULL COMMENT 'Telegram chat_id',
+  `telegram_chat_id` int(11) DEFAULT NULL COMMENT 'Telegram chat_id',
   `username` varchar(30) NOT NULL COMMENT 'Account name',
   `otp` text DEFAULT NULL COMMENT 'One-time password',
-  `api_key` text NOT NULL COMMENT 'API Key',
-  `api_secret` text NOT NULL COMMENT 'API Secret',
-  `activated` tinyint(4) NOT NULL DEFAULT 1 COMMENT '1: activated 0: inactivated',
+  `exchange_api_info` longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_bin NOT NULL DEFAULT '{}' COMMENT 'Exchange API info' CHECK (json_valid(`exchange_api_info`)),
+  `activated` tinyint(4) NOT NULL DEFAULT 1 COMMENT '0: inactivated 1: activated',
   `last_login_at` datetime DEFAULT NULL COMMENT 'Last login time',
   `created_at` datetime NOT NULL DEFAULT current_timestamp() COMMENT 'Create time',
   `updated_at` datetime NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp() COMMENT 'Last update time',
@@ -49,4 +48,4 @@ CREATE TABLE `users` (
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2021-09-17 22:35:13
+-- Dump completed on 2021-09-22  3:20:32

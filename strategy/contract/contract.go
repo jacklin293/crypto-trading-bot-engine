@@ -9,41 +9,44 @@ import (
 	"github.com/shopspring/decimal"
 )
 
-type Status int
+type Status int64
 
 const (
 	// position status
-	OPENED Status = 1
-	CLOSED Status = 0
+	CLOSED  Status = 0
+	OPENED  Status = 1
+	UNKNOWN Status = 2
 )
+
+type Mark struct {
+	Price decimal.Decimal
+	Time  time.Time
+}
 
 type Hooker interface {
 	// EntryOrder
-	EntryTriggered(*Contract, time.Time, decimal.Decimal) (decimal.Decimal, error, bool)
-	StopLossTriggerCreated(*Contract) (error, bool)
+	EntryTriggered(*Contract, time.Time, decimal.Decimal) (decimal.Decimal, bool, error)
+	StopLossTriggerCreated(*Contract) (bool, error)
 
 	// StopLossOrder
-	StopLossTriggered(*Contract, time.Time, decimal.Decimal) error
+	StopLossTriggered(*Contract) (bool, error)
 	EntryBaselineTriggerUpdated(*Contract)
 
 	// TakeProfitOrder
-	TakeProfitTriggered(*Contract, time.Time, decimal.Decimal) error
+	TakeProfitTriggered(*Contract) error
 
-	// Order's trigger gets updated
-	OrderTriggerUpdated(*Contract)
-
-	// Status changed
-	StatusChanged(*Contract)
+	// Entry order trigger gets updated
+	ParamsUpdated(*Contract) (bool, error)
 }
 
 type Contract struct {
-	ContractDirection order.ContractDirection
-	EntryType         string
-	EntryOrder        order.Order
-	TakeProfitOrder   order.Order
-	StopLossOrder     order.Order
+	Side            order.Side
+	EntryType       string
+	EntryOrder      order.Order
+	TakeProfitOrder order.Order
+	StopLossOrder   order.Order
 
-	// To check if contract has been opened
+	// The status of the contract
 	Status Status
 
 	// entry_type 'baseline' only
@@ -56,17 +59,17 @@ type Contract struct {
 	hook Hooker
 }
 
-func NewContract(contractDirection order.ContractDirection, data map[string]interface{}) (c *Contract, err error) {
+func NewContract(side order.Side, data map[string]interface{}) (c *Contract, err error) {
 	c = &Contract{
 		Status: CLOSED, // default
 	}
 
 	// contract direction
-	if contractDirection != order.LONG && contractDirection != order.SHORT {
-		err = fmt.Errorf("contract_direction '%d' not supported", contractDirection)
+	if side != order.LONG && side != order.SHORT {
+		err = fmt.Errorf("side '%d' not supported", side)
 		return
 	}
-	c.ContractDirection = contractDirection
+	c.Side = side
 
 	entryType, ok := data["entry_type"].(string)
 	if !ok {
@@ -85,7 +88,7 @@ func NewContract(contractDirection order.ContractDirection, data map[string]inte
 		err = errors.New("'entry_order' is missing")
 		return
 	}
-	entryOrder, err := order.NewOrder(contractDirection, entryType, "entry", eo)
+	entryOrder, err := order.NewOrder(side, entryType, "entry", eo)
 	if err != nil {
 		return
 	}
@@ -95,7 +98,7 @@ func NewContract(contractDirection order.ContractDirection, data map[string]inte
 	var takeProfitOrder order.Order
 	tpo, ok := data["take_profit_order"].(map[string]interface{})
 	if ok {
-		takeProfitOrder, err = order.NewOrder(contractDirection, entryType, "take_profit", tpo)
+		takeProfitOrder, err = order.NewOrder(side, entryType, "take_profit", tpo)
 		if err != nil {
 			return
 		}
@@ -106,7 +109,7 @@ func NewContract(contractDirection order.ContractDirection, data map[string]inte
 	var stopLossOrder order.Order
 	slo, ok := data["stop_loss_order"].(map[string]interface{})
 	if ok {
-		stopLossOrder, err = order.NewOrder(contractDirection, entryType, "stop_loss", slo)
+		stopLossOrder, err = order.NewOrder(side, entryType, "stop_loss", slo)
 		if err != nil {
 			return
 		}
@@ -124,47 +127,45 @@ func (c *Contract) SetStatus(status Status) {
 	c.Status = status
 }
 
-func (c *Contract) CheckPrice(t time.Time, p decimal.Decimal) (err error, halted bool) {
+func (c *Contract) CheckPrice(mark Mark) (halted bool, err error) {
 	switch c.Status {
 	case CLOSED:
 		// Check if entry order is triggered
-		if c.EntryOrder.IsTriggered(t, p) {
+		if c.EntryOrder.IsTriggered(mark.Time, mark.Price) {
 			// If both of entry order and one of stop-loss and take-profit order get triggered, do nothing
 			// Otherwise, the stop-loss or take-profit order will be triggered immediately after entry-order triggered
-			if c.StopLossOrder != nil && c.StopLossOrder.IsTriggered(t, p) {
+			if c.StopLossOrder != nil && c.StopLossOrder.IsTriggered(mark.Time, mark.Price) {
 				return
 			}
-			if c.TakeProfitOrder != nil && c.TakeProfitOrder.IsTriggered(t, p) {
+			if c.TakeProfitOrder != nil && c.TakeProfitOrder.IsTriggered(mark.Time, mark.Price) {
 				return
 			}
 
 			// Entry order is triggered
 			var entryPrice decimal.Decimal
-			if entryPrice, err, halted = c.hook.EntryTriggered(c, t, p); err != nil || halted {
+			if entryPrice, halted, err = c.hook.EntryTriggered(c, mark.Time, mark.Price); err != nil || halted {
 				return
 			}
-
 			c.Status = OPENED
-			c.hook.StatusChanged(c)
 
 			// Set stop-loss trigger & order
 			if c.StopLossOrder != nil {
 				switch c.EntryType {
 				case order.ENTRY_LIMIT:
-					if err, halted = c.hook.StopLossTriggerCreated(c); err != nil || halted {
+					if halted, err = c.hook.StopLossTriggerCreated(c); err != nil || halted {
 						return
 					}
 				case order.ENTRY_BASELINE:
 					// For entry_type 'baseline', stop-loss order will depend on entry price
 					c.setStopLossTrigger(entryPrice)
-					if err, halted = c.hook.StopLossTriggerCreated(c); err != nil || halted {
+					if halted, err = c.hook.StopLossTriggerCreated(c); err != nil || halted {
 						return
 					}
 
 					// Record breakout peak
 					if c.StopLossOrder.(*order.StopLoss).BaselineReadjustmentEnabled {
 						// Set breakout peak because price is default '0', it casues a bug in Short position
-						c.setBreakoutPeak(t, p)
+						c.setBreakoutPeak(mark.Time, mark.Price)
 					}
 				}
 			}
@@ -173,29 +174,32 @@ func (c *Contract) CheckPrice(t time.Time, p decimal.Decimal) (err error, halted
 			// For example:
 			//      - entry trigger: mark price <= 43000
 			//      - stop-loss trigger: mark price  <= 42000
-			// These 2 orders will be constantly triggered when the mark price fluctuates around 42000 above and below
-			// Fix this issue by changing the operator of entry trigger
+			//			These 2 orders will be constantly triggered when the mark price fluctuates around 42000 above and below
+			//			Fix this issue by changing the operator of entry trigger
 			if c.EntryOrder.(*order.Entry).FlipOperatorEnabled {
-				c.EntryOrder.(*order.Entry).UpdateOperator(c.ContractDirection)
+				c.EntryOrder.(*order.Entry).FlipOperator(c.Side)
+				c.EntryOrder.(*order.Entry).FlipOperatorEnabled = false
 			}
 
-			c.hook.OrderTriggerUpdated(c)
+			// For entry trigger during initialisation and setStopLossTrigger
+			if halted, err = c.hook.ParamsUpdated(c); err != nil || halted {
+				return
+			}
+
 			return
 		}
 	case OPENED:
 		if c.EntryType == order.ENTRY_BASELINE && c.StopLossOrder != nil && c.StopLossOrder.(*order.StopLoss).BaselineReadjustmentEnabled {
-			c.recordBreakoutPeak(t, p)
+			c.recordBreakoutPeak(mark.Time, mark.Price)
 		}
 
 		// Check if stop-loss order is triggered
-		if c.StopLossOrder != nil && c.StopLossOrder.IsTriggered(t, p) {
+		if c.StopLossOrder != nil && c.StopLossOrder.IsTriggered(mark.Time, mark.Price) {
 			// Stop-loss order is triggered
-			if err = c.hook.StopLossTriggered(c, t, p); err != nil {
+			if halted, err = c.hook.StopLossTriggered(c); err != nil || halted {
 				return
 			}
-
 			c.Status = CLOSED
-			c.hook.StatusChanged(c)
 
 			if c.EntryType == order.ENTRY_BASELINE {
 				// Reset stop-loss trigger so when the mark price goes above entry won't be affected by previous stop-loss trigger
@@ -206,23 +210,27 @@ func (c *Contract) CheckPrice(t time.Time, p decimal.Decimal) (err error, halted
 					c.hook.EntryBaselineTriggerUpdated(c)
 					c.resetBreakoutPeak()
 				}
-				c.hook.OrderTriggerUpdated(c)
 			}
+
+			// For readjustEntryBaseline and stop-loss UnsetTrigger
+			if halted, err = c.hook.ParamsUpdated(c); err != nil || halted {
+				return
+			}
+
 			return
 		}
 
 		// Check take-profit order
-		if c.TakeProfitOrder != nil && c.TakeProfitOrder.IsTriggered(t, p) {
+		if c.TakeProfitOrder != nil && c.TakeProfitOrder.IsTriggered(mark.Time, mark.Price) {
 			// Take-profit order is triggered
-			if err = c.hook.TakeProfitTriggered(c, t, p); err != nil {
-				return
-			}
-
 			c.Status = CLOSED
-			c.hook.StatusChanged(c)
+			err = c.hook.TakeProfitTriggered(c)
 			halted = true
+
 			return
 		}
+	case UNKNOWN:
+		return true, errors.New("unknown status")
 	}
 	return
 }
@@ -230,17 +238,17 @@ func (c *Contract) CheckPrice(t time.Time, p decimal.Decimal) (err error, halted
 // entry_type 'baseline' only
 // Set baseline price as cost price
 func (c *Contract) setStopLossTrigger(p decimal.Decimal) {
-	c.StopLossOrder.(*order.StopLoss).UpdateTriggerByLossPercent(c.ContractDirection, p)
+	c.StopLossOrder.(*order.StopLoss).UpdateTriggerByLossPercent(c.Side, p)
 }
 
 // entry_type 'baseline' only
 // Update baseline trigger and entry order for preventing false breakout
 func (c *Contract) readjustEntryBaseline() {
 	// Update baseline trigger first
-	c.EntryOrder.(*order.Entry).UpdateBaselineTrigger(c.ContractDirection, c.BreakoutPeak.Price, c.BreakoutPeak.Time)
+	c.EntryOrder.(*order.Entry).UpdateBaselineTrigger(c.Side, c.BreakoutPeak.Price, c.BreakoutPeak.Time)
 
-	// Update entry order based on baseline trigger and offset
-	c.EntryOrder.(*order.Entry).UpdateTriggerByBaselineAndOffset(c.ContractDirection)
+	// Update trigger based on baseline trigger and offset
+	c.EntryOrder.(*order.Entry).UpdateTriggerByBaselineAndOffset(c.Side)
 }
 
 // entry_type 'baseline' only
@@ -251,7 +259,7 @@ func (c *Contract) setBreakoutPeak(t time.Time, p decimal.Decimal) {
 
 // entry_type 'baseline' only
 func (c *Contract) recordBreakoutPeak(t time.Time, p decimal.Decimal) {
-	switch c.ContractDirection {
+	switch c.Side {
 	case order.LONG:
 		if p.GreaterThanOrEqual(c.BreakoutPeak.Price) {
 			c.BreakoutPeak.Time = t
@@ -269,4 +277,23 @@ func (c *Contract) recordBreakoutPeak(t time.Time, p decimal.Decimal) {
 func (c *Contract) resetBreakoutPeak() {
 	c.BreakoutPeak.Time = time.Time{}
 	c.BreakoutPeak.Price = decimal.Decimal{}
+}
+
+// TODO test
+
+func TranslateStatus(s Status) string {
+	switch s {
+	case CLOSED:
+		return "Closed"
+	case OPENED:
+		return "Opened"
+	case UNKNOWN:
+		return "Unknown"
+	}
+	return ""
+}
+
+// TODO test
+func TranslateStatusByInt(s int64) string {
+	return TranslateStatus(Status(s))
 }

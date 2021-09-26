@@ -30,7 +30,7 @@ func TestNewOrder(t *testing.T) {
 				"trigger": map[string]interface{}{
 					"trigger_type": "limit",
 					"operator":     "<=",
-					"price":        47200.23,
+					"price":        "47200.23",
 				},
 			},
 			expectedError: false,
@@ -42,7 +42,7 @@ func TestNewOrder(t *testing.T) {
 				"trigger": map[string]interface{}{
 					"trigger_type": "limit",
 					"operator":     "<=",
-					"price":        47200.23,
+					"price":        "47200.23",
 				},
 			},
 			expectedError: false,
@@ -54,7 +54,7 @@ func TestNewOrder(t *testing.T) {
 				"trigger": map[string]interface{}{
 					"trigger_type": "limit",
 					"operator":     "<=",
-					"price":        47200.23,
+					"price":        "47200.23",
 				},
 			},
 			expectedError: false,
@@ -66,7 +66,7 @@ func TestNewOrder(t *testing.T) {
 				"trigger": map[string]interface{}{
 					"trigger_type": "limit",
 					"operator":     "<=",
-					"price":        47200.23,
+					"price":        "47200.23",
 				},
 			},
 			expectedError: true,

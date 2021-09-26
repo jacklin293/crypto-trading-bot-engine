@@ -18,14 +18,14 @@ func TestNewLimit(t *testing.T) {
 			title: "valid params",
 			params: map[string]interface{}{
 				"operator": ">=",
-				"price":    float64(333),
+				"price":    "333",
 			},
 			expectedError: false,
 		},
 		{
 			title: "missing operator",
 			params: map[string]interface{}{
-				"price": float64(333.444),
+				"price": "333.444",
 			},
 			expectedError: true,
 		},
@@ -40,7 +40,7 @@ func TestNewLimit(t *testing.T) {
 			title: "wrong type of price",
 			params: map[string]interface{}{
 				"operator": ">=",
-				"price":    "333",
+				"price":    333,
 			},
 			expectedError: true,
 		},

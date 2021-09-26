@@ -12,7 +12,7 @@
 *.out
 
 # Dependency directories (remove the comment below to include it)
-# vendor/
+vendor/
 
 # binary
 crypto-trading-bot-main
@@ -22,3 +22,6 @@ TODO.md
 
 # Dev DB env
 mariadb
+
+# config file
+config.yml

@@ -10,7 +10,7 @@ import (
 )
 
 const (
-	SHUTDOWN_TIMEOUT = 30
+	SHUTDOWN_TIMEOUT = 300
 )
 
 // Gracefull shutdown

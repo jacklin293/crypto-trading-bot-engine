@@ -20,7 +20,7 @@ func TestNewTakeProfit(t *testing.T) {
 				"trigger": map[string]interface{}{
 					"trigger_type": "limit",
 					"operator":     "<=",
-					"price":        47200.23,
+					"price":        "47200.23",
 				},
 			},
 			expectedError: false,
@@ -31,10 +31,10 @@ func TestNewTakeProfit(t *testing.T) {
 				"trigger": map[string]interface{}{
 					"trigger_type": "line",
 					"operator":     ">=",
-					"time_1":       "2021-08-18 18:00:00",
-					"price_1":      46000.23,
-					"time_2":       "2021-08-19 01:45:00",
-					"price_2":      45234.56,
+					"time_1":       "2021-08-18T18:00:00Z",
+					"price_1":      "46000.23",
+					"time_2":       "2021-08-19T01:45:00Z",
+					"price_2":      "45234.56",
 				},
 			},
 			expectedError: false,

@@ -1,30 +1,28 @@
 package runner
 
 import (
+	"fmt"
 	"log"
+	"runtime/debug"
 	"sync"
 	"time"
 
 	"crypto-trading-bot-main/db"
+	"crypto-trading-bot-main/exchange"
+	"crypto-trading-bot-main/message"
 	"crypto-trading-bot-main/strategy/contract"
 	"crypto-trading-bot-main/strategy/order"
-
-	"github.com/shopspring/decimal"
 )
 
-type Mark struct {
-	Price decimal.Decimal
-	Time  time.Time
-}
-
 type ContractStrategyRunner struct {
-	contractStrategy db.ContractStrategy
+	contractStrategy *db.ContractStrategy
+	user             *db.User
 
 	logger *log.Logger
 
 	// Channel
 	StopCh chan bool
-	MarkCh chan Mark
+	MarkCh chan contract.Mark
 
 	// DB
 	db *db.DB
@@ -33,32 +31,46 @@ type ContractStrategyRunner struct {
 	contract     *contract.Contract
 	contractHook *contractHook
 
-	// Deal with stop the strategy
-	handlerBlockWg  *sync.WaitGroup
+	// Disable strategy
+	disableCh chan db.ContractStrategy
+
+	// Process the strategy out of sync
+	outOfSyncCh chan db.ContractStrategy
+
+	// reset strategy
+	resetCh chan db.ContractStrategy
+
+	// Deal with the sig for stopping the strategy
+	runnerBlockWg   *sync.WaitGroup
 	beforeCloseFunc func(string, string)
+
+	// Send the notification, only support telegram atm
+	sender message.Messenger // all users use the same one, but sent with different chat_id
 
 	// Check mark price once a time
 	ignoreIncomingMark bool
 }
 
-// TODO Refactor here due to too many params
-// TODO Receive DB strategy
-func NewContractStrategyRunner(cs db.ContractStrategy) (*ContractStrategyRunner, error) {
-	ch := newContractHook()
-	c, err := contract.NewContract(order.ContractDirection(cs.ContractDirection), cs.ContractParams)
+func NewContractStrategyRunner(cs *db.ContractStrategy) (*ContractStrategyRunner, error) {
+	// New contract hook
+	ch := newContractHook(cs)
+	ch.contractStrategy = cs
+
+	// New contract
+	c, err := contract.NewContract(order.Side(cs.Side), cs.Params)
 	if err != nil {
 		return &ContractStrategyRunner{}, err
 	}
 	c.SetHook(ch)
+	c.SetStatus(contract.Status(cs.PositionStatus))
 
 	s := &ContractStrategyRunner{
 		contractStrategy: cs,
 		contract:         c,
 		contractHook:     ch,
 		StopCh:           make(chan bool),
-		MarkCh:           make(chan Mark),
+		MarkCh:           make(chan contract.Mark),
 	}
-
 	return s, err
 }
 
@@ -69,19 +81,45 @@ func (r *ContractStrategyRunner) SetLogger(l *log.Logger) {
 
 func (r *ContractStrategyRunner) SetDB(db *db.DB) {
 	r.db = db
+	r.contractHook.db = db
 }
 
 func (r *ContractStrategyRunner) SetBeforeCloseFunc(f func(string, string)) {
 	r.beforeCloseFunc = f
 }
 
-func (r *ContractStrategyRunner) SetHandlerBlockWg(wg *sync.WaitGroup) {
-	r.handlerBlockWg = wg
+func (r *ContractStrategyRunner) SetRunnerBlockWg(wg *sync.WaitGroup) {
+	r.runnerBlockWg = wg
 }
 
-func (r *ContractStrategyRunner) SetPositionStatus(status contract.Status) {
-	r.contract.SetStatus(status)
-	// TODO activePosition after SetStatus
+func (r *ContractStrategyRunner) SetSymbolEntryTakenMutexForHook(m map[string]*sync.Mutex) {
+	r.contractHook.setSymbolEntryTakenMutex(m)
+}
+
+func (r *ContractStrategyRunner) SetExchangeForHook(ex exchange.Exchanger) {
+	r.contractHook.setExchange(ex)
+}
+
+func (r *ContractStrategyRunner) SetSender(m message.Messenger) {
+	r.sender = m
+	r.contractHook.setSender(m)
+}
+
+func (r *ContractStrategyRunner) SetUser(u *db.User) {
+	r.user = u
+	r.contractHook.setUser(u)
+}
+
+func (r *ContractStrategyRunner) SetDisableCh(ch chan db.ContractStrategy) {
+	r.disableCh = ch
+}
+
+func (r *ContractStrategyRunner) SetOutOfSyncCh(ch chan db.ContractStrategy) {
+	r.outOfSyncCh = ch
+}
+
+func (r *ContractStrategyRunner) SetResetCh(ch chan db.ContractStrategy) {
+	r.resetCh = ch
 }
 
 // Start
@@ -106,42 +144,53 @@ func (r *ContractStrategyRunner) Run() {
 	}
 
 	// This might not be necessary, but better to wait until removal process done
-	r.handlerBlockWg.Add(1)
-	defer r.handlerBlockWg.Done()
+	r.runnerBlockWg.Add(1)
+	defer r.runnerBlockWg.Done()
 	r.beforeCloseFunc(r.contractStrategy.Symbol, r.contractStrategy.Uuid)
 }
 
 // Check mark price
-func (r *ContractStrategyRunner) checkPrice(mark *Mark) {
+func (r *ContractStrategyRunner) checkPrice(mark *contract.Mark) {
+	// for graceful shutdown, block everything in progress until they are done
+	r.runnerBlockWg.Add(1)
+	defer r.runnerBlockWg.Done()
+	defer func() { r.ignoreIncomingMark = false }()
 	defer func() {
 		if e := recover(); e != nil {
-			r.logger.Printf("strategy '%s' panic: %v\n", r.contractStrategy.Uuid, e)
+			r.logger.Printf("strategy '%s' panic: %v stack: %s\n", r.contractStrategy.Uuid, e, string(debug.Stack()))
 			// TODO telegram
 			// TODO call r.disableStrategy
+			text := fmt.Sprintf("[Error] '%s %s' Internal Server Error. Please check and reset your position and order", order.TranslateSideByInt(r.contractStrategy.Side), r.contractStrategy.Symbol)
+			r.sender.Send(r.user.TelegramChatId, text)
+			r.outOfSyncCh <- *r.contractStrategy
+			r.disableCh <- *r.contractStrategy
 		}
 	}()
 
-	// Prevent the process from being closed when anything is in progress
-	r.handlerBlockWg.Add(1)
-	defer r.handlerBlockWg.Done()
+	// TODO DEBUG del
+	// r.logger.Println(r.contractStrategy.Symbol, r.contractStrategy.Uuid, mark.Time.Format("2006-01-02 15:04:05"), mark.Price, runtime.NumGoroutine())
 
-	// TODO del
-	r.logger.Println(r.contractStrategy.Uuid, mark.Time.Format("2006-01-02 15:04:05"), mark.Price)
+	// TODO If it's internal error, sleep random secs
+	halted, err := r.contract.CheckPrice(*mark)
+	if err != nil && halted { // scenario: DB fails
+		r.logger.Printf("[ERROR] strategy: '%s', user: '%s', symbol: '%s', positionStatus: '%s' - halted, err: %s\n", r.contractStrategy.Uuid, r.contractStrategy.UserUuid, r.contractStrategy.Symbol, contract.TranslateStatusByInt(r.contractStrategy.PositionStatus), err)
+		r.outOfSyncCh <- *r.contractStrategy
+		r.disableCh <- *r.contractStrategy
 
-	err, halted := r.contract.CheckPrice(mark.Time, mark.Price)
-	if err != nil {
-		r.logger.Printf("[ERROR] strategy '%s' CheckPrice err: %v\n", r.contractStrategy.Uuid, err)
+		// TODO FIXME panic: close of closed channel stack
+		// TODO reproduction: create a scenario that sleep during the runtime then trigger `ctrl+c` to `close(ch)` in handler. The panic will be trigger by closing closed ch again
+		close(r.StopCh)
+	} else if err != nil { // scenario: ftx api 400, still want to retry
+		r.logger.Printf("[ERROR] strategy: '%s', user: '%s', symbol: '%s', positionStatus: '%s' - err: %v\n", r.contractStrategy.Uuid, r.contractStrategy.UserUuid, r.contractStrategy.Symbol, contract.TranslateStatusByInt(r.contractStrategy.PositionStatus), err)
+
+		// Sleep a while and try again
+		time.Sleep(time.Second * 3)
+	} else if halted { // scenario: take-profit, err is nil
+		r.logger.Printf("[INFO] strategy: '%s', user: '%s', symbol: '%s', positionStatus: '%s' halted\n", r.contractStrategy.Uuid, r.contractStrategy.UserUuid, r.contractStrategy.Symbol, contract.TranslateStatusByInt(r.contractStrategy.PositionStatus))
+		r.resetCh <- *r.contractStrategy
+		close(r.StopCh)
 	}
-	if halted {
-		r.logger.Printf("[INFO] strategy '%s' CheckPrice halted\n", r.contractStrategy.Uuid)
-		// TODO telegram
-		// TODO call r.disableStrategy()
-	}
-	r.ignoreIncomingMark = false
-}
 
-// TODO
-func (r *ContractStrategyRunner) disableStrategy() {
-	// TODO disable the strategy
-	// TODO Stop the strategy
+	// TODO telegram, Send some message after a period of time to user for indicating it's still alive
+
 }

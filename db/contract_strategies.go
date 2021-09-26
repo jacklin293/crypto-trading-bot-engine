@@ -14,11 +14,11 @@ type ContractStrategy struct {
 	Uuid                  string
 	UserUuid              string
 	Symbol                string // e.g. BTC-PERP
-	Cost                  decimal.Decimal
-	ContractDirection     int64 // 1: long   0: short
-	ContractParams        datatypes.JSONMap
-	Enabled               int64  // 1: enabled   0: disabled
-	PositionStatus        int64  // 2: unknown   1: opened   0: closed
+	Margin                decimal.Decimal
+	Side                  int64 // 0: short  1: long
+	Params                datatypes.JSONMap
+	Enabled               int64  // 0: disabled  1: enabled
+	PositionStatus        int64  // 0: closed  1: opened  2: unknown
 	Exchange              string // e.g. FTX
 	ExchangeOrdersDetails datatypes.JSONMap
 	LastPositionAt        time.Time
@@ -34,4 +34,26 @@ func (db *DB) GetEnabledContractStrategies() ([]ContractStrategy, int64, error) 
 		return css, 0, result.Error
 	}
 	return css, result.RowsAffected, result.Error
+}
+
+// TODO Loop with LIMIT until no more
+func (db *DB) GetNonClosedContractStrategiesBySymbol(userUuid string, symbol string, uuid string) ([]ContractStrategy, int64, error) {
+	var css []ContractStrategy
+	result := db.GormDB.Where("user_uuid = ? AND position_status != 0 AND enabled = 1 AND symbol = ? AND uuid != ?", userUuid, symbol, uuid).Find(&css)
+	if result.Error != nil && !errors.Is(result.Error, gorm.ErrRecordNotFound) {
+		return css, 0, result.Error
+	}
+	return css, result.RowsAffected, result.Error
+}
+
+// NOTE Struct doesn't support 0 value, use map instead
+func (db *DB) UpdateContractStrategy(uuid string, contractStrategy map[string]interface{}) (int64, error) {
+	result := db.GormDB.Model(ContractStrategy{}).Where("uuid = ?", uuid).Updates(contractStrategy)
+	return result.RowsAffected, result.Error
+}
+
+func (db *DB) GetContractStrategyByUuid(uuid string) (*ContractStrategy, error) {
+	var s ContractStrategy
+	result := db.GormDB.Where("uuid = ?", uuid).First(&s)
+	return &s, result.Error
 }
