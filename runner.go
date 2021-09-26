@@ -41,8 +41,8 @@ type runnerHandler struct {
 	// Message sender
 	sender message.Messenger
 
-	// receive command from upstream handler
-	eventCh chan string // e.g. {"action": "restart", "strategy_uuid": "strategy.Uuid"}
+	// Receive events from api
+	apiEventCh chan []byte // json payload
 
 	// This is the stop channel for handler itself
 	eventStopCh chan bool
@@ -172,7 +172,7 @@ func (h *runnerHandler) newSender() {
 	h.sender = sender
 }
 
-// NOTE Don't care about performance for now
+// NOTE FIXME Don't care about performance for now
 func (h *runnerHandler) setUserMap(userUuid string) (db.User, error) {
 	user, err := h.db.GetUserByUuid(userUuid)
 	if err != nil {
@@ -189,21 +189,25 @@ func (h *runnerHandler) listenEvents() {
 			// Exit
 			h.eventStopCh <- true
 			return
-		case action := <-h.eventCh:
+
+		case payload := <-h.apiEventCh:
 			// TODO unmarshal event payload
-			switch action {
-			case "stop_contract_strategy_runner":
-				// TODO close stopCh
-			case "restart_contract_strategy_runner":
+			switch string(payload) {
+			case "enable_strategy":
 				// TODO close stopCh
 				// TODO Read strategy from DB
 				// TODO New strategy runner
 				// TODO start that strategy runner again
-			case "start_contract_strategy_runner":
+			case "disable_strategy":
+				// TODO Get strategy from DB
+				// TODO Send to disableContractStrategyCh
+			case "reset_strategy":
+				// TODO Get strategy from DB
+				// TODO Send to resetContractStrategyCh
 			case "close_position":
 			}
-		// TODO new case for
 
+		// Disable a strategy
 		case cs := <-h.disableContractStrategyCh:
 			user, ok := h.userMap.Load(cs.UserUuid)
 
@@ -214,9 +218,10 @@ func (h *runnerHandler) listenEvents() {
 			if _, err := h.db.UpdateContractStrategy(cs.Uuid, data); err != nil {
 				h.logger.Printf("[ERROR] strategy: '%s', user: '%s', symbol: '%s', err: %v", cs.Uuid, cs.UserUuid, cs.Symbol, err)
 				if ok {
-					go h.sender.Send(user.(*db.User).TelegramChatId, "[Error] Internal Server Error")
+					text := fmt.Sprintf("[Error] '%s %s' Internal Server Error. Please check and reset your position and order", order.TranslateSideByInt(cs.Side), cs.Symbol)
+					go h.sender.Send(user.(*db.User).TelegramChatId, text)
 				}
-				return
+				continue
 			}
 
 			h.logger.Printf("[Info] strategy: '%s', user: '%s', symbol: '%s' has been disabled", cs.Uuid, cs.UserUuid, cs.Symbol)
@@ -224,6 +229,17 @@ func (h *runnerHandler) listenEvents() {
 				text := fmt.Sprintf("[Info] '%s %s' has been disabled", order.TranslateSideByInt(cs.Side), cs.Symbol)
 				go h.sender.Send(user.(*db.User).TelegramChatId, text)
 			}
+
+			// NOTE It won't cause any issues if system sig and event happen at the same time
+			//      , in that case, when system sig received, 'contract strategy runner'.beforeCloseFunc` will be finished first.
+			//      , which means strategy_uuid has been removed from stopChMap
+			//      , and the key will be found in the map so that it won't cause `panic: close of closed channel stack` here
+			ch, ok := h.stopChMap.Load(cs.Uuid)
+			if ok {
+				close(ch.(chan bool))
+			}
+
+		// Process a strategy out of sync
 		case cs := <-h.outOfSyncContractStrategyCh:
 			user, ok := h.userMap.Load(cs.UserUuid)
 
@@ -234,9 +250,10 @@ func (h *runnerHandler) listenEvents() {
 			if _, err := h.db.UpdateContractStrategy(cs.Uuid, data); err != nil {
 				h.logger.Printf("[ERROR] strategy: '%s', user: '%s', symbol: '%s', err: %v", cs.Uuid, cs.UserUuid, cs.Symbol, err)
 				if ok {
-					go h.sender.Send(user.(*db.User).TelegramChatId, "[Error] Internal Server Error")
+					text := fmt.Sprintf("[Error] '%s %s' Internal Server Error. Please check and reset your position and order", order.TranslateSideByInt(cs.Side), cs.Symbol)
+					go h.sender.Send(user.(*db.User).TelegramChatId, text)
 				}
-				return
+				continue
 			}
 
 			h.logger.Printf("[Warn] strategy: '%s', user: '%s', symbol: '%s' status has been changed to 'UNKNOWN'", cs.Uuid, cs.UserUuid, cs.Symbol)
@@ -244,6 +261,8 @@ func (h *runnerHandler) listenEvents() {
 				text := fmt.Sprintf("[Warn] '%s %s' is out of sync, please check and reset your position and order", order.TranslateSideByInt(cs.Side), cs.Symbol)
 				go h.sender.Send(user.(*db.User).TelegramChatId, text)
 			}
+
+		// Reset a strategy
 		case cs := <-h.resetContractStrategyCh:
 			user, ok := h.userMap.Load(cs.UserUuid)
 
@@ -256,15 +275,21 @@ func (h *runnerHandler) listenEvents() {
 			if _, err := h.db.UpdateContractStrategy(cs.Uuid, data); err != nil {
 				h.logger.Printf("[ERROR] strategy: '%s', user: '%s', symbol: '%s', err: %v", cs.Uuid, cs.UserUuid, cs.Symbol, err)
 				if ok {
-					go h.sender.Send(user.(*db.User).TelegramChatId, "[Error] Internal Server Error")
+					text := fmt.Sprintf("[Error] '%s %s' Internal Server Error. Please check and reset your position and order", order.TranslateSideByInt(cs.Side), cs.Symbol)
+					go h.sender.Send(user.(*db.User).TelegramChatId, text)
 				}
-				return
+				continue
 			}
 
 			h.logger.Printf("[Info] strategy: '%s', user: '%s', symbol: '%s' has been reset", cs.Uuid, cs.UserUuid, cs.Symbol)
 			if ok {
 				text := fmt.Sprintf("[Info] '%s %s' has been reset", order.TranslateSideByInt(cs.Side), cs.Symbol)
 				go h.sender.Send(user.(*db.User).TelegramChatId, text)
+			}
+
+			ch, ok := h.stopChMap.Load(cs.Uuid)
+			if ok {
+				close(ch.(chan bool))
 			}
 		}
 	}

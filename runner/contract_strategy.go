@@ -181,10 +181,6 @@ func (r *ContractStrategyRunner) checkPrice(mark *contract.Mark) {
 		r.logger.Printf("[ERROR] strategy: '%s', user: '%s', symbol: '%s', positionStatus: '%s' - halted, err: %s\n", r.contractStrategy.Uuid, r.contractStrategy.UserUuid, r.contractStrategy.Symbol, contract.TranslateStatusByInt(r.contractStrategy.PositionStatus), err)
 		r.outOfSyncCh <- *r.contractStrategy
 		r.disableCh <- *r.contractStrategy
-
-		// TODO FIXME panic: close of closed channel stack
-		// TODO reproduction: create a scenario that sleep during the runtime then trigger `ctrl+c` to `close(ch)` in handler. The panic will be trigger by closing closed ch again
-		close(r.StopCh)
 	} else if err != nil { // scenario: ftx api 400, still want to retry
 		r.logger.Printf("[ERROR] strategy: '%s', user: '%s', symbol: '%s', positionStatus: '%s' - err: %v\n", r.contractStrategy.Uuid, r.contractStrategy.UserUuid, r.contractStrategy.Symbol, contract.TranslateStatusByInt(r.contractStrategy.PositionStatus), err)
 
@@ -193,7 +189,6 @@ func (r *ContractStrategyRunner) checkPrice(mark *contract.Mark) {
 	} else if halted { // scenario: take-profit, err is nil
 		r.logger.Printf("[INFO] strategy: '%s', user: '%s', symbol: '%s', positionStatus: '%s' is done!\n", r.contractStrategy.Uuid, r.contractStrategy.UserUuid, r.contractStrategy.Symbol, contract.TranslateStatusByInt(r.contractStrategy.PositionStatus))
 		r.resetCh <- *r.contractStrategy
-		close(r.StopCh)
 	}
 
 	// Send 'alive' message after a period of time
