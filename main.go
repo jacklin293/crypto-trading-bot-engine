@@ -23,9 +23,9 @@ func main() {
 	l := log.New(os.Stdout, "", log.LstdFlags|log.Lshortfile)
 
 	// runner
-	srh := newRunnerHandler(l)
-	srh.setDB(db)
-	go srh.process()
+	rh := newRunnerHandler(l)
+	rh.setDB(db)
+	go rh.process()
 
 	// signal
 	sh := newSignalHandler(l)
@@ -33,12 +33,18 @@ func main() {
 	// websocket
 	wsh := newWsHandler(l)
 	wsh.setSignalDoneCh(sh.doneCh)
-	wsh.setRunnerHandler(srh)
+	wsh.setRunnerHandler(rh)
 	wsh.setDB(db)
 	go wsh.connect()
 
+	// http
+	hh := newHttpHandler(l)
+	hh.setRunnerHandler(rh)
+	go hh.startHttpServer()
+
 	// signal
-	sh.setBeforeCloseFunc(wsh.close)
+	sh.setCloseHttpFunc(hh.shutdown)
+	sh.setCloseRunnerFunc(wsh.close)
 	sh.capture()
 }
 

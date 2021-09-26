@@ -36,8 +36,8 @@ func (h *wsHandler) setDB(db *db.DB) {
 	h.db = db
 }
 
-func (h *wsHandler) setRunnerHandler(srh *runnerHandler) {
-	h.runnerHandler = srh
+func (h *wsHandler) setRunnerHandler(rh *runnerHandler) {
+	h.runnerHandler = rh
 }
 
 func (h *wsHandler) connect() {

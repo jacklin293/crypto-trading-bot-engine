@@ -15,7 +15,8 @@ const (
 
 // Gracefull shutdown
 type signalHandler struct {
-	beforeClose func()
+	closeRunner func()
+	closeHttp   func()
 	ctx         context.Context
 	logger      *log.Logger
 	sigCh       chan os.Signal
@@ -32,8 +33,12 @@ func newSignalHandler(l *log.Logger) *signalHandler {
 	}
 }
 
-func (h *signalHandler) setBeforeCloseFunc(f func()) {
-	h.beforeClose = f
+func (h *signalHandler) setCloseRunnerFunc(f func()) {
+	h.closeRunner = f
+}
+
+func (h *signalHandler) setCloseHttpFunc(f func()) {
+	h.closeHttp = f
 }
 
 // Capture system signal
@@ -47,7 +52,8 @@ func (h *signalHandler) capture() {
 
 func (h *signalHandler) shutdown() {
 	h.logger.Printf("[pid:%d] terminating...\n", syscall.Getpid())
-	h.beforeClose()
+	h.closeHttp()
+	h.closeRunner()
 
 	var cancel context.CancelFunc
 	if SHUTDOWN_TIMEOUT > 0 {
