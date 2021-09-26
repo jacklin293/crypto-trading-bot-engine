@@ -14,6 +14,10 @@ import (
 	"crypto-trading-bot-main/strategy/order"
 )
 
+const (
+	ALIVE_NOTIFICATION_INTERVAL = 60
+)
+
 type ContractStrategyRunner struct {
 	contractStrategy *db.ContractStrategy
 	user             *db.User
@@ -49,6 +53,9 @@ type ContractStrategyRunner struct {
 
 	// Check mark price once a time
 	ignoreIncomingMark bool
+
+	// Alive notification
+	lastAliveNotificationTime time.Time
 }
 
 func NewContractStrategyRunner(cs *db.ContractStrategy) (*ContractStrategyRunner, error) {
@@ -65,11 +72,12 @@ func NewContractStrategyRunner(cs *db.ContractStrategy) (*ContractStrategyRunner
 	c.SetStatus(contract.Status(cs.PositionStatus))
 
 	s := &ContractStrategyRunner{
-		contractStrategy: cs,
-		contract:         c,
-		contractHook:     ch,
-		StopCh:           make(chan bool),
-		MarkCh:           make(chan contract.Mark),
+		contractStrategy:          cs,
+		contract:                  c,
+		contractHook:              ch,
+		StopCh:                    make(chan bool),
+		MarkCh:                    make(chan contract.Mark),
+		lastAliveNotificationTime: time.Now(), // Don't send when it just launches
 	}
 	return s, err
 }
@@ -158,19 +166,16 @@ func (r *ContractStrategyRunner) checkPrice(mark *contract.Mark) {
 	defer func() {
 		if e := recover(); e != nil {
 			r.logger.Printf("strategy '%s' panic: %v stack: %s\n", r.contractStrategy.Uuid, e, string(debug.Stack()))
-			// TODO telegram
-			// TODO call r.disableStrategy
 			text := fmt.Sprintf("[Error] '%s %s' Internal Server Error. Please check and reset your position and order", order.TranslateSideByInt(r.contractStrategy.Side), r.contractStrategy.Symbol)
-			r.sender.Send(r.user.TelegramChatId, text)
+			go r.sender.Send(r.user.TelegramChatId, text)
 			r.outOfSyncCh <- *r.contractStrategy
 			r.disableCh <- *r.contractStrategy
 		}
 	}()
 
-	// TODO DEBUG del
+	// NOTE For DEBUG
 	// r.logger.Println(r.contractStrategy.Symbol, r.contractStrategy.Uuid, mark.Time.Format("2006-01-02 15:04:05"), mark.Price, runtime.NumGoroutine())
 
-	// TODO If it's internal error, sleep random secs
 	halted, err := r.contract.CheckPrice(*mark)
 	if err != nil && halted { // scenario: DB fails
 		r.logger.Printf("[ERROR] strategy: '%s', user: '%s', symbol: '%s', positionStatus: '%s' - halted, err: %s\n", r.contractStrategy.Uuid, r.contractStrategy.UserUuid, r.contractStrategy.Symbol, contract.TranslateStatusByInt(r.contractStrategy.PositionStatus), err)
@@ -186,11 +191,15 @@ func (r *ContractStrategyRunner) checkPrice(mark *contract.Mark) {
 		// Sleep a while and try again
 		time.Sleep(time.Second * 3)
 	} else if halted { // scenario: take-profit, err is nil
-		r.logger.Printf("[INFO] strategy: '%s', user: '%s', symbol: '%s', positionStatus: '%s' halted\n", r.contractStrategy.Uuid, r.contractStrategy.UserUuid, r.contractStrategy.Symbol, contract.TranslateStatusByInt(r.contractStrategy.PositionStatus))
+		r.logger.Printf("[INFO] strategy: '%s', user: '%s', symbol: '%s', positionStatus: '%s' is done!\n", r.contractStrategy.Uuid, r.contractStrategy.UserUuid, r.contractStrategy.Symbol, contract.TranslateStatusByInt(r.contractStrategy.PositionStatus))
 		r.resetCh <- *r.contractStrategy
 		close(r.StopCh)
 	}
 
-	// TODO telegram, Send some message after a period of time to user for indicating it's still alive
-
+	// Send 'alive' message after a period of time
+	if time.Now().After(r.lastAliveNotificationTime.Add(time.Minute * time.Duration(ALIVE_NOTIFICATION_INTERVAL))) {
+		r.lastAliveNotificationTime = time.Now()
+		text := fmt.Sprintf("[Info] Don't worry! '%s %s $%s' is still alive", order.TranslateSideByInt(r.contractStrategy.Side), r.contractStrategy.Symbol, r.contractStrategy.Margin)
+		go r.sender.Send(r.user.TelegramChatId, text)
+	}
 }
