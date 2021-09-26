@@ -19,7 +19,7 @@ const (
 )
 
 type ContractStrategyRunner struct {
-	contractStrategy *db.ContractStrategy
+	ContractStrategy *db.ContractStrategy
 	user             *db.User
 
 	logger *log.Logger
@@ -36,17 +36,20 @@ type ContractStrategyRunner struct {
 	contractHook *contractHook
 
 	// Disable strategy
-	disableCh chan db.ContractStrategy
+	disableCh chan string // contract strategy uuid
 
 	// Process the strategy out of sync
-	outOfSyncCh chan db.ContractStrategy
+	outOfSyncCh chan string // contract strategy uuid
 
 	// reset strategy
-	resetCh chan db.ContractStrategy
+	resetCh chan string // contract strategy uuid
 
-	// Deal with the sig for stopping the strategy
-	runnerBlockWg   *sync.WaitGroup
+	// Deal with the sig for stopping the strategy, all strategies share the same sync.WaitGroup
+	handlerBlockWg  *sync.WaitGroup
 	beforeCloseFunc func(string, string)
+
+	// Make sure strategy finishes its work before being killed
+	RunnerBlockWg sync.WaitGroup
 
 	// Send the notification, only support telegram atm
 	sender message.Messenger // all users use the same one, but sent with different chat_id
@@ -72,7 +75,7 @@ func NewContractStrategyRunner(cs *db.ContractStrategy) (*ContractStrategyRunner
 	c.SetStatus(contract.Status(cs.PositionStatus))
 
 	s := &ContractStrategyRunner{
-		contractStrategy:          cs,
+		ContractStrategy:          cs,
 		contract:                  c,
 		contractHook:              ch,
 		StopCh:                    make(chan bool),
@@ -96,8 +99,8 @@ func (r *ContractStrategyRunner) SetBeforeCloseFunc(f func(string, string)) {
 	r.beforeCloseFunc = f
 }
 
-func (r *ContractStrategyRunner) SetRunnerBlockWg(wg *sync.WaitGroup) {
-	r.runnerBlockWg = wg
+func (r *ContractStrategyRunner) SetHandlerBlockWg(wg *sync.WaitGroup) {
+	r.handlerBlockWg = wg
 }
 
 func (r *ContractStrategyRunner) SetSymbolEntryTakenMutexForHook(m map[string]*sync.Mutex) {
@@ -118,15 +121,15 @@ func (r *ContractStrategyRunner) SetUser(u *db.User) {
 	r.contractHook.setUser(u)
 }
 
-func (r *ContractStrategyRunner) SetDisableCh(ch chan db.ContractStrategy) {
+func (r *ContractStrategyRunner) SetDisableCh(ch chan string) {
 	r.disableCh = ch
 }
 
-func (r *ContractStrategyRunner) SetOutOfSyncCh(ch chan db.ContractStrategy) {
+func (r *ContractStrategyRunner) SetOutOfSyncCh(ch chan string) {
 	r.outOfSyncCh = ch
 }
 
-func (r *ContractStrategyRunner) SetResetCh(ch chan db.ContractStrategy) {
+func (r *ContractStrategyRunner) SetResetCh(ch chan string) {
 	r.resetCh = ch
 }
 
@@ -152,49 +155,50 @@ func (r *ContractStrategyRunner) Run() {
 	}
 
 	// This might not be necessary, but better to wait until removal process done
-	r.runnerBlockWg.Add(1)
-	defer r.runnerBlockWg.Done()
-	r.beforeCloseFunc(r.contractStrategy.Symbol, r.contractStrategy.Uuid)
+	r.handlerBlockWg.Add(1)
+	defer r.handlerBlockWg.Done()
+	r.RunnerBlockWg.Wait()
+	r.beforeCloseFunc(r.ContractStrategy.Symbol, r.ContractStrategy.Uuid)
 }
 
 // Check mark price
 func (r *ContractStrategyRunner) checkPrice(mark *contract.Mark) {
 	// for graceful shutdown, block everything in progress until they are done
-	r.runnerBlockWg.Add(1)
-	defer r.runnerBlockWg.Done()
+	r.handlerBlockWg.Add(1)
+	defer r.handlerBlockWg.Done()
 	defer func() { r.ignoreIncomingMark = false }()
 	defer func() {
 		if e := recover(); e != nil {
-			r.logger.Printf("strategy '%s' panic: %v stack: %s\n", r.contractStrategy.Uuid, e, string(debug.Stack()))
-			text := fmt.Sprintf("[Error] '%s %s' Internal Server Error. Please check and reset your position and order", order.TranslateSideByInt(r.contractStrategy.Side), r.contractStrategy.Symbol)
+			r.logger.Printf("strategy '%s' panic: %v stack: %s\n", r.ContractStrategy.Uuid, e, string(debug.Stack()))
+			text := fmt.Sprintf("[Error] '%s %s' Internal Server Error. Please check and reset your position and order", order.TranslateSideByInt(r.ContractStrategy.Side), r.ContractStrategy.Symbol)
 			go r.sender.Send(r.user.TelegramChatId, text)
-			r.outOfSyncCh <- *r.contractStrategy
-			r.disableCh <- *r.contractStrategy
+			r.outOfSyncCh <- r.ContractStrategy.Uuid
+			r.disableCh <- r.ContractStrategy.Uuid
 		}
 	}()
 
 	// NOTE For DEBUG
-	// r.logger.Println(r.contractStrategy.Symbol, r.contractStrategy.Uuid, mark.Time.Format("2006-01-02 15:04:05"), mark.Price, runtime.NumGoroutine())
+	// r.logger.Println(r.ContractStrategy.Symbol, r.ContractStrategy.Uuid, mark.Time.Format("2006-01-02 15:04:05"), mark.Price, runtime.NumGoroutine())
 
 	halted, err := r.contract.CheckPrice(*mark)
 	if err != nil && halted { // scenario: DB fails
-		r.logger.Printf("[ERROR] strategy: '%s', user: '%s', symbol: '%s', positionStatus: '%s' - halted, err: %s\n", r.contractStrategy.Uuid, r.contractStrategy.UserUuid, r.contractStrategy.Symbol, contract.TranslateStatusByInt(r.contractStrategy.PositionStatus), err)
-		r.outOfSyncCh <- *r.contractStrategy
-		r.disableCh <- *r.contractStrategy
+		r.logger.Printf("[ERROR] strategy: '%s', user: '%s', symbol: '%s', positionStatus: '%s' - halted, err: %s\n", r.ContractStrategy.Uuid, r.ContractStrategy.UserUuid, r.ContractStrategy.Symbol, contract.TranslateStatusByInt(r.ContractStrategy.PositionStatus), err)
+		r.outOfSyncCh <- r.ContractStrategy.Uuid
+		r.disableCh <- r.ContractStrategy.Uuid
 	} else if err != nil { // scenario: ftx api 400, still want to retry
-		r.logger.Printf("[ERROR] strategy: '%s', user: '%s', symbol: '%s', positionStatus: '%s' - err: %v\n", r.contractStrategy.Uuid, r.contractStrategy.UserUuid, r.contractStrategy.Symbol, contract.TranslateStatusByInt(r.contractStrategy.PositionStatus), err)
+		r.logger.Printf("[ERROR] strategy: '%s', user: '%s', symbol: '%s', positionStatus: '%s' - err: %v\n", r.ContractStrategy.Uuid, r.ContractStrategy.UserUuid, r.ContractStrategy.Symbol, contract.TranslateStatusByInt(r.ContractStrategy.PositionStatus), err)
 
 		// Sleep a while and try again
 		time.Sleep(time.Second * 3)
 	} else if halted { // scenario: take-profit, err is nil
-		r.logger.Printf("[INFO] strategy: '%s', user: '%s', symbol: '%s', positionStatus: '%s' is done!\n", r.contractStrategy.Uuid, r.contractStrategy.UserUuid, r.contractStrategy.Symbol, contract.TranslateStatusByInt(r.contractStrategy.PositionStatus))
-		r.resetCh <- *r.contractStrategy
+		r.logger.Printf("[INFO] strategy: '%s', user: '%s', symbol: '%s', positionStatus: '%s' is done!\n", r.ContractStrategy.Uuid, r.ContractStrategy.UserUuid, r.ContractStrategy.Symbol, contract.TranslateStatusByInt(r.ContractStrategy.PositionStatus))
+		r.resetCh <- r.ContractStrategy.Uuid
 	}
 
 	// Send 'alive' message after a period of time
 	if time.Now().After(r.lastAliveNotificationTime.Add(time.Minute * time.Duration(ALIVE_NOTIFICATION_INTERVAL))) {
 		r.lastAliveNotificationTime = time.Now()
-		text := fmt.Sprintf("[Info] Don't worry! '%s %s $%s' is still alive", order.TranslateSideByInt(r.contractStrategy.Side), r.contractStrategy.Symbol, r.contractStrategy.Margin)
+		text := fmt.Sprintf("[Info] Don't worry! '%s %s $%s' is still alive", order.TranslateSideByInt(r.ContractStrategy.Side), r.ContractStrategy.Symbol, r.ContractStrategy.Margin)
 		go r.sender.Send(r.user.TelegramChatId, text)
 	}
 }

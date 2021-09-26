@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"log"
 	"sync"
+	"time"
 
 	"github.com/spf13/viper"
 	"gorm.io/datatypes"
@@ -22,10 +23,8 @@ type runnerHandler struct {
 	symbolMarkChMutex sync.RWMutex
 	symbolMarkChMap   map[string]map[string]chan contract.Mark
 
-	//
-
-	// Notify runner to stop
-	stopChMap sync.Map // map[strategy.Uuid]chan StopCh
+	// Strategy runner by strategy uuid
+	runnerChMap sync.Map // map[strategy.Uuid]chan runner.ContractStrategyRunner
 
 	// Check if entry order of symbol has been triggered already
 	// One user can only trigger 1 entry order of symbol at once
@@ -48,13 +47,13 @@ type runnerHandler struct {
 	eventStopCh chan bool
 
 	// Disable contract strategy
-	disableContractStrategyCh chan db.ContractStrategy
+	disableContractStrategyCh chan string // contract strategy uuid
 
 	// Deal with contract strategy out of sync
-	outOfSyncContractStrategyCh chan db.ContractStrategy
+	outOfSyncContractStrategyCh chan string // contract strategy uuid
 
 	// Reset contract strategy
-	resetContractStrategyCh chan db.ContractStrategy
+	resetContractStrategyCh chan string // contract strategy uuid
 
 	// DB
 	db *db.DB
@@ -69,9 +68,9 @@ func newRunnerHandler(l *log.Logger) *runnerHandler {
 		symbolMarkChMap:             make(map[string]map[string]chan contract.Mark),
 		symbolEntryTakenMutex:       make(map[string]*sync.Mutex),
 		exchangeUserMap:             make(map[string]exchange.Exchanger),
-		disableContractStrategyCh:   make(chan db.ContractStrategy),
-		outOfSyncContractStrategyCh: make(chan db.ContractStrategy),
-		resetContractStrategyCh:     make(chan db.ContractStrategy),
+		disableContractStrategyCh:   make(chan string),
+		outOfSyncContractStrategyCh: make(chan string),
+		resetContractStrategyCh:     make(chan string),
 		eventStopCh:                 make(chan bool),
 	}
 }
@@ -108,8 +107,8 @@ func (h *runnerHandler) process() {
 			h.logger.Printf("[ERROR] strategy: '%s', user: '%s', symbol: '%s', err: %v\n", cs.Uuid, cs.UserUuid, cs.Symbol, err)
 
 			// Disable the contract strategy
-			h.outOfSyncContractStrategyCh <- cs
-			h.disableContractStrategyCh <- cs
+			h.outOfSyncContractStrategyCh <- cs.Uuid
+			h.disableContractStrategyCh <- cs.Uuid
 			continue
 		}
 
@@ -130,10 +129,16 @@ func (h *runnerHandler) newContractStrategyRunner(cs db.ContractStrategy, user d
 	r.SetDB(h.db)
 	r.SetLogger(h.logger)
 	r.SetBeforeCloseFunc(h.stopContractStrategyRunner)
-	r.SetRunnerBlockWg(&h.blockWg)
+	r.SetHandlerBlockWg(&h.blockWg)
 	r.SetDisableCh(h.disableContractStrategyCh)
 	r.SetOutOfSyncCh(h.outOfSyncContractStrategyCh)
 	r.SetResetCh(h.resetContractStrategyCh)
+
+	// New exchange client and set to the hook
+	if err = h.newExchangeUserMap(cs.Exchange, &user); err != nil {
+		return err
+	}
+	r.SetExchangeForHook(h.exchangeUserMap[user.Uuid])
 
 	// Set symbolEntryTakenMutex
 	if h.symbolEntryTakenMutex[cs.UserUuid] == nil {
@@ -144,18 +149,12 @@ func (h *runnerHandler) newContractStrategyRunner(cs db.ContractStrategy, user d
 	// Set user for hook
 	r.SetUser(&user)
 
-	// New exchange client and set to the hook
-	if err = h.newExchangeUserMap(cs.Exchange, &user); err != nil {
-		return err
-	}
-	r.SetExchangeForHook(h.exchangeUserMap[user.Uuid])
-
 	// Set sender for contract strategy runner and hook
 	r.SetSender(h.sender)
 
 	// Manage contract strategy channel
 	h.addIntoMarkChMap(cs.Symbol, cs.Uuid, r.MarkCh)
-	h.addIntoStopChMap(cs.Uuid, r.StopCh)
+	h.addIntoRunnerChMap(cs.Uuid, r)
 
 	go r.Run()
 	return nil
@@ -208,88 +207,34 @@ func (h *runnerHandler) listenEvents() {
 			}
 
 		// Disable a strategy
-		case cs := <-h.disableContractStrategyCh:
-			user, ok := h.userMap.Load(cs.UserUuid)
+		case uuid := <-h.disableContractStrategyCh:
+			h.disableContractStrategy(uuid)
 
-			// Disable contract strategy
-			data := map[string]interface{}{
-				"enabled": 0,
-			}
-			if _, err := h.db.UpdateContractStrategy(cs.Uuid, data); err != nil {
-				h.logger.Printf("[ERROR] strategy: '%s', user: '%s', symbol: '%s', err: %v", cs.Uuid, cs.UserUuid, cs.Symbol, err)
-				if ok {
-					text := fmt.Sprintf("[Error] '%s %s' Internal Server Error. Please check and reset your position and order", order.TranslateSideByInt(cs.Side), cs.Symbol)
-					go h.sender.Send(user.(*db.User).TelegramChatId, text)
-				}
-				continue
-			}
-
-			h.logger.Printf("[Info] strategy: '%s', user: '%s', symbol: '%s' has been disabled", cs.Uuid, cs.UserUuid, cs.Symbol)
+			// NOTE workaround, please see the detail in another comment
+			time.Sleep(time.Millisecond * 10)
+			r, ok := h.runnerChMap.Load(uuid)
 			if ok {
-				text := fmt.Sprintf("[Info] '%s %s' has been disabled", order.TranslateSideByInt(cs.Side), cs.Symbol)
-				go h.sender.Send(user.(*db.User).TelegramChatId, text)
-			}
-
-			// NOTE It won't cause any issues if system sig and event happen at the same time
-			//      , in that case, when system sig received, 'contract strategy runner'.beforeCloseFunc` will be finished first.
-			//      , which means strategy_uuid has been removed from stopChMap
-			//      , and the key will be found in the map so that it won't cause `panic: close of closed channel stack` here
-			ch, ok := h.stopChMap.Load(cs.Uuid)
-			if ok {
-				close(ch.(chan bool))
+				close(r.(*runner.ContractStrategyRunner).StopCh)
 			}
 
 		// Process a strategy out of sync
-		case cs := <-h.outOfSyncContractStrategyCh:
-			user, ok := h.userMap.Load(cs.UserUuid)
-
-			// Change status
-			data := map[string]interface{}{
-				"position_status": int64(contract.UNKNOWN),
-			}
-			if _, err := h.db.UpdateContractStrategy(cs.Uuid, data); err != nil {
-				h.logger.Printf("[ERROR] strategy: '%s', user: '%s', symbol: '%s', err: %v", cs.Uuid, cs.UserUuid, cs.Symbol, err)
-				if ok {
-					text := fmt.Sprintf("[Error] '%s %s' Internal Server Error. Please check and reset your position and order", order.TranslateSideByInt(cs.Side), cs.Symbol)
-					go h.sender.Send(user.(*db.User).TelegramChatId, text)
-				}
-				continue
-			}
-
-			h.logger.Printf("[Warn] strategy: '%s', user: '%s', symbol: '%s' status has been changed to 'UNKNOWN'", cs.Uuid, cs.UserUuid, cs.Symbol)
-			if ok {
-				text := fmt.Sprintf("[Warn] '%s %s' is out of sync, please check and reset your position and order", order.TranslateSideByInt(cs.Side), cs.Symbol)
-				go h.sender.Send(user.(*db.User).TelegramChatId, text)
-			}
+		case uuid := <-h.outOfSyncContractStrategyCh:
+			h.outOfSyncContractStrategy(uuid)
 
 		// Reset a strategy
-		case cs := <-h.resetContractStrategyCh:
-			user, ok := h.userMap.Load(cs.UserUuid)
+		case uuid := <-h.resetContractStrategyCh:
+			h.resetContractStrategy(uuid)
 
-			// Reset status
-			data := map[string]interface{}{
-				"enabled":                 0,
-				"position_status":         int64(contract.CLOSED),
-				"exchange_orders_details": datatypes.JSONMap{},
-			}
-			if _, err := h.db.UpdateContractStrategy(cs.Uuid, data); err != nil {
-				h.logger.Printf("[ERROR] strategy: '%s', user: '%s', symbol: '%s', err: %v", cs.Uuid, cs.UserUuid, cs.Symbol, err)
-				if ok {
-					text := fmt.Sprintf("[Error] '%s %s' Internal Server Error. Please check and reset your position and order", order.TranslateSideByInt(cs.Side), cs.Symbol)
-					go h.sender.Send(user.(*db.User).TelegramChatId, text)
-				}
-				continue
-			}
-
-			h.logger.Printf("[Info] strategy: '%s', user: '%s', symbol: '%s' has been reset", cs.Uuid, cs.UserUuid, cs.Symbol)
+			// NOTE In order to avoid `panic: close of closed channel`, sleep here a little to buy time for
+			//      runner.beforeCloseFunc to clear the strategy from the map, so that it won't get strategy
+			//      here (in the following step) and won't close closed channal again
+			// Reproduction: send to this channel, then sleep 3 seconds at the end of `resetContractStrategy`
+			//               , trigger system signal by pressing `ctrl+c` so that stopCh could be closed twice
+			//               if there is no sleep blocking here
+			time.Sleep(time.Millisecond * 10)
+			r, ok := h.runnerChMap.Load(uuid)
 			if ok {
-				text := fmt.Sprintf("[Info] '%s %s' has been reset", order.TranslateSideByInt(cs.Side), cs.Symbol)
-				go h.sender.Send(user.(*db.User).TelegramChatId, text)
-			}
-
-			ch, ok := h.stopChMap.Load(cs.Uuid)
-			if ok {
-				close(ch.(chan bool))
+				close(r.(*runner.ContractStrategyRunner).StopCh)
 			}
 		}
 	}
@@ -312,7 +257,7 @@ func (h *runnerHandler) newExchangeUserMap(name string, user *db.User) error {
 
 func (h *runnerHandler) stopContractStrategyRunner(symbol string, strategyUuid string) {
 	h.removeFromMarkChMap(symbol, strategyUuid)
-	h.removeFromStopChMap(strategyUuid)
+	h.removeFromRunnerChMap(strategyUuid)
 }
 
 func (h *runnerHandler) addIntoMarkChMap(symbol string, strategyUuid string, markCh chan contract.Mark) {
@@ -346,22 +291,22 @@ func (h *runnerHandler) removeFromMarkChMap(symbol string, strategyUuid string) 
 	}
 }
 
-func (h *runnerHandler) addIntoStopChMap(strategyUuid string, stopCh chan bool) {
-	h.stopChMap.Store(strategyUuid, stopCh)
+func (h *runnerHandler) addIntoRunnerChMap(strategyUuid string, r *runner.ContractStrategyRunner) {
+	h.runnerChMap.Store(strategyUuid, r)
 }
 
-// Remove contract strategy from stopChMap
+// Remove uuid from runnerChMap
 // NOTE: Delete doesn't actually delete the key from the internal map, it only deletes the value
 //       The best way to check if the key is still available is to use Load()
-func (h *runnerHandler) removeFromStopChMap(strategyUuid string) {
-	h.stopChMap.Delete(strategyUuid)
+func (h *runnerHandler) removeFromRunnerChMap(strategyUuid string) {
+	h.runnerChMap.Delete(strategyUuid)
 }
 
 func (h *runnerHandler) stopAll() {
 	// Send stop signal to each contract strategy runner
-	h.stopChMap.Range(func(_, value interface{}) bool {
-		ch := value.(chan bool)
-		close(ch)
+	h.runnerChMap.Range(func(_, value interface{}) bool {
+		r := value.(*runner.ContractStrategyRunner)
+		close(r.StopCh)
 		return true
 	})
 
@@ -382,5 +327,127 @@ func (h *runnerHandler) broadcastMark(symbol string, mark contract.Mark) {
 		for _, ch := range list {
 			ch <- mark
 		}
+	}
+}
+
+func (h *runnerHandler) disableContractStrategy(uuid string) {
+	r, ok := h.runnerChMap.Load(uuid)
+	if !ok {
+		h.logger.Printf("[Error] disableContractStrategyCh - strategyUuid '%s' not found from the map", uuid)
+		return
+	}
+
+	// Block until finished
+	r.(*runner.ContractStrategyRunner).RunnerBlockWg.Add(1)
+	defer r.(*runner.ContractStrategyRunner).RunnerBlockWg.Done()
+
+	// Get user data
+	cs := r.(*runner.ContractStrategyRunner).ContractStrategy
+	user, ok := h.userMap.Load(cs.UserUuid)
+	if !ok {
+		h.logger.Printf("[Error] disableContractStrategyCh - userUuid '%s' not found from the map", uuid)
+		return
+	}
+
+	// Disable contract strategy
+	data := map[string]interface{}{
+		"enabled": 0,
+	}
+	if _, err := h.db.UpdateContractStrategy(cs.Uuid, data); err != nil {
+		h.logger.Printf("[ERROR] strategy: '%s', user: '%s', symbol: '%s', err: %v", cs.Uuid, cs.UserUuid, cs.Symbol, err)
+		if ok {
+			text := fmt.Sprintf("[Error] '%s %s' Internal Server Error. Please check and reset your position and order", order.TranslateSideByInt(cs.Side), cs.Symbol)
+			go h.sender.Send(user.(*db.User).TelegramChatId, text)
+		}
+		return
+	}
+
+	h.logger.Printf("[Info] strategy: '%s', user: '%s', symbol: '%s' has been disabled", cs.Uuid, cs.UserUuid, cs.Symbol)
+	if ok {
+		text := fmt.Sprintf("[Info] '%s %s' has been disabled", order.TranslateSideByInt(cs.Side), cs.Symbol)
+		go h.sender.Send(user.(*db.User).TelegramChatId, text)
+	}
+
+	h.logger.Println("sleep 3s")
+	time.Sleep(time.Second * 3)
+}
+
+func (h *runnerHandler) outOfSyncContractStrategy(uuid string) {
+	r, ok := h.runnerChMap.Load(uuid)
+	if !ok {
+		h.logger.Printf("[Error] disableContractStrategyCh - uuid '%s' not found from the map", uuid)
+		return
+	}
+
+	// Block until finished
+	r.(*runner.ContractStrategyRunner).RunnerBlockWg.Add(1)
+	defer r.(*runner.ContractStrategyRunner).RunnerBlockWg.Done()
+
+	// Get user data
+	cs := r.(*runner.ContractStrategyRunner).ContractStrategy
+	user, ok := h.userMap.Load(cs.UserUuid)
+	if !ok {
+		h.logger.Printf("[Error] userUuid '%s' not found from the map", uuid)
+		return
+	}
+
+	// Change status
+	data := map[string]interface{}{
+		"position_status": int64(contract.UNKNOWN),
+	}
+	if _, err := h.db.UpdateContractStrategy(cs.Uuid, data); err != nil {
+		h.logger.Printf("[ERROR] strategy: '%s', user: '%s', symbol: '%s', err: %v", cs.Uuid, cs.UserUuid, cs.Symbol, err)
+		if ok {
+			text := fmt.Sprintf("[Error] '%s %s' Internal Server Error. Please check and reset your position and order", order.TranslateSideByInt(cs.Side), cs.Symbol)
+			go h.sender.Send(user.(*db.User).TelegramChatId, text)
+		}
+		return
+	}
+
+	h.logger.Printf("[Warn] strategy: '%s', user: '%s', symbol: '%s' status has been changed to 'UNKNOWN'", cs.Uuid, cs.UserUuid, cs.Symbol)
+	if ok {
+		text := fmt.Sprintf("[Warn] '%s %s' is out of sync, please check and reset your position and order", order.TranslateSideByInt(cs.Side), cs.Symbol)
+		go h.sender.Send(user.(*db.User).TelegramChatId, text)
+	}
+}
+
+func (h *runnerHandler) resetContractStrategy(uuid string) {
+	r, ok := h.runnerChMap.Load(uuid)
+	if !ok {
+		h.logger.Printf("[Error] strategyUuid '%s' not found from the map", uuid)
+		return
+	}
+
+	// Block until finished
+	r.(*runner.ContractStrategyRunner).RunnerBlockWg.Add(1)
+	defer r.(*runner.ContractStrategyRunner).RunnerBlockWg.Done()
+
+	// Get user data
+	cs := r.(*runner.ContractStrategyRunner).ContractStrategy
+	user, ok := h.userMap.Load(cs.UserUuid)
+	if !ok {
+		h.logger.Printf("[Error] userUuid '%s' not found from the map", uuid)
+		return
+	}
+
+	// Reset status
+	data := map[string]interface{}{
+		"enabled":                 0,
+		"position_status":         int64(contract.CLOSED),
+		"exchange_orders_details": datatypes.JSONMap{},
+	}
+	if _, err := h.db.UpdateContractStrategy(cs.Uuid, data); err != nil {
+		h.logger.Printf("[ERROR] strategy: '%s', user: '%s', symbol: '%s', err: %v", cs.Uuid, cs.UserUuid, cs.Symbol, err)
+		if ok {
+			text := fmt.Sprintf("[Error] '%s %s' Internal Server Error. Please check and reset your position and order", order.TranslateSideByInt(cs.Side), cs.Symbol)
+			go h.sender.Send(user.(*db.User).TelegramChatId, text)
+		}
+		return
+	}
+
+	h.logger.Printf("[Info] strategy: '%s', user: '%s', symbol: '%s' has been reset", cs.Uuid, cs.UserUuid, cs.Symbol)
+	if ok {
+		text := fmt.Sprintf("[Info] '%s %s' has been reset", order.TranslateSideByInt(cs.Side), cs.Symbol)
+		go h.sender.Send(user.(*db.User).TelegramChatId, text)
 	}
 }

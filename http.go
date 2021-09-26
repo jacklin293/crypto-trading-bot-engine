@@ -6,6 +6,7 @@ import (
 	"log"
 	"net/http"
 	"runtime"
+	"strings"
 	"time"
 
 	"github.com/spf13/viper"
@@ -50,6 +51,8 @@ func (h *httpHandler) startHttpServer() {
 	router := http.NewServeMux()
 	router.HandleFunc("/ping", h.ping)
 	router.HandleFunc("/status", h.status)
+	router.HandleFunc("/strategy", h.strategy)
+	router.HandleFunc("/list", h.list)
 	h.server.Handler = router
 
 	h.logger.Printf("[http] Server is listening '%s'", h.server.Addr)
@@ -70,10 +73,36 @@ func (h *httpHandler) shutdown() {
 	}
 }
 
-func (h *httpHandler) ping(w http.ResponseWriter, req *http.Request) {
+func (h *httpHandler) ping(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintf(w, "pong")
 }
 
-func (h *httpHandler) status(w http.ResponseWriter, req *http.Request) {
+func (h *httpHandler) status(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintf(w, "goroutine num: %d", runtime.NumGoroutine())
+}
+
+func (h *httpHandler) list(w http.ResponseWriter, r *http.Request) {
+	var uuids []string
+	h.runnerHandler.runnerChMap.Range(func(key, _ interface{}) bool {
+		uuids = append(uuids, key.(string))
+		return true
+	})
+	fmt.Fprintf(w, "%+v", uuids)
+}
+
+func (h *httpHandler) strategy(w http.ResponseWriter, r *http.Request) {
+	query := r.URL.Query()
+	action := strings.Trim(query.Get("action"), " ")
+	uuid := strings.Trim(query.Get("uuid"), " ")
+	fmt.Println(uuid)
+
+	switch action {
+	case "enable":
+	case "disable":
+	case "restart":
+	case "close_position":
+	default:
+		w.WriteHeader(http.StatusBadRequest)
+		fmt.Fprintf(w, "action '%s' not supported", action)
+	}
 }
