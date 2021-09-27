@@ -10,6 +10,7 @@ import (
 	"crypto-trading-bot-main/db"
 	"crypto-trading-bot-main/exchange"
 	"crypto-trading-bot-main/message"
+	"crypto-trading-bot-main/strategy"
 	"crypto-trading-bot-main/strategy/contract"
 	"crypto-trading-bot-main/strategy/order"
 )
@@ -35,18 +36,12 @@ type ContractStrategyRunner struct {
 	contract     *contract.Contract
 	contractHook *contractHook
 
-	// Disable strategy
-	disableCh chan string // contract strategy uuid
-
-	// Process the strategy out of sync
-	outOfSyncCh chan string // contract strategy uuid
-
-	// reset strategy
-	resetCh chan string // contract strategy uuid
-
 	// Deal with the sig for stopping the strategy, all strategies share the same sync.WaitGroup
 	handlerBlockWg  *sync.WaitGroup
 	beforeCloseFunc func(string, string)
+
+	// To disable/reset, etc.. a strategy from handler
+	handlerEventsCh *strategy.EventsCh
 
 	// Make sure strategy finishes its work before being killed
 	RunnerBlockWg sync.WaitGroup
@@ -121,16 +116,8 @@ func (r *ContractStrategyRunner) SetUser(u *db.User) {
 	r.contractHook.setUser(u)
 }
 
-func (r *ContractStrategyRunner) SetDisableCh(ch chan string) {
-	r.disableCh = ch
-}
-
-func (r *ContractStrategyRunner) SetOutOfSyncCh(ch chan string) {
-	r.outOfSyncCh = ch
-}
-
-func (r *ContractStrategyRunner) SetResetCh(ch chan string) {
-	r.resetCh = ch
+func (r *ContractStrategyRunner) SetHandlerEventsCh(ch *strategy.EventsCh) {
+	r.handlerEventsCh = ch
 }
 
 // Start
@@ -172,8 +159,8 @@ func (r *ContractStrategyRunner) checkPrice(mark *contract.Mark) {
 			r.logger.Printf("strategy '%s' panic: %v stack: %s\n", r.ContractStrategy.Uuid, e, string(debug.Stack()))
 			text := fmt.Sprintf("[Error] '%s %s' Internal Server Error. Please check and reset your position and order", order.TranslateSideByInt(r.ContractStrategy.Side), r.ContractStrategy.Symbol)
 			go r.sender.Send(r.user.TelegramChatId, text)
-			r.outOfSyncCh <- r.ContractStrategy.Uuid
-			r.disableCh <- r.ContractStrategy.Uuid
+			r.handlerEventsCh.OutOfSync <- r.ContractStrategy.Uuid
+			r.handlerEventsCh.Disable <- r.ContractStrategy.Uuid
 		}
 	}()
 
@@ -183,8 +170,8 @@ func (r *ContractStrategyRunner) checkPrice(mark *contract.Mark) {
 	halted, err := r.contract.CheckPrice(*mark)
 	if err != nil && halted { // scenario: DB fails
 		r.logger.Printf("[ERROR] strategy: '%s', user: '%s', symbol: '%s', positionStatus: '%s' - halted, err: %s\n", r.ContractStrategy.Uuid, r.ContractStrategy.UserUuid, r.ContractStrategy.Symbol, contract.TranslateStatusByInt(r.ContractStrategy.PositionStatus), err)
-		r.outOfSyncCh <- r.ContractStrategy.Uuid
-		r.disableCh <- r.ContractStrategy.Uuid
+		r.handlerEventsCh.OutOfSync <- r.ContractStrategy.Uuid
+		r.handlerEventsCh.Disable <- r.ContractStrategy.Uuid
 	} else if err != nil { // scenario: ftx api 400, still want to retry
 		r.logger.Printf("[ERROR] strategy: '%s', user: '%s', symbol: '%s', positionStatus: '%s' - err: %v\n", r.ContractStrategy.Uuid, r.ContractStrategy.UserUuid, r.ContractStrategy.Symbol, contract.TranslateStatusByInt(r.ContractStrategy.PositionStatus), err)
 
@@ -192,7 +179,7 @@ func (r *ContractStrategyRunner) checkPrice(mark *contract.Mark) {
 		time.Sleep(time.Second * 3)
 	} else if halted { // scenario: take-profit, err is nil
 		r.logger.Printf("[INFO] strategy: '%s', user: '%s', symbol: '%s', positionStatus: '%s' is done!\n", r.ContractStrategy.Uuid, r.ContractStrategy.UserUuid, r.ContractStrategy.Symbol, contract.TranslateStatusByInt(r.ContractStrategy.PositionStatus))
-		r.resetCh <- r.ContractStrategy.Uuid
+		r.handlerEventsCh.Reset <- r.ContractStrategy.Uuid
 	}
 
 	// Send 'alive' message after a period of time

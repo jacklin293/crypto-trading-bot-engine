@@ -5,6 +5,7 @@ import (
 	"crypto-trading-bot-main/exchange"
 	"crypto-trading-bot-main/message"
 	"crypto-trading-bot-main/runner"
+	"crypto-trading-bot-main/strategy"
 	"crypto-trading-bot-main/strategy/contract"
 	"crypto-trading-bot-main/strategy/order"
 	"fmt"
@@ -44,16 +45,10 @@ type runnerHandler struct {
 	apiEventCh chan []byte // json payload
 
 	// This is the stop channel for handler itself
-	eventStopCh chan bool
+	eventsStopCh chan bool
 
-	// Disable contract strategy
-	disableContractStrategyCh chan string // contract strategy uuid
-
-	// Deal with contract strategy out of sync
-	outOfSyncContractStrategyCh chan string // contract strategy uuid
-
-	// Reset contract strategy
-	resetContractStrategyCh chan string // contract strategy uuid
+	// There are channels for runner to communicate with handler
+	eventsCh strategy.EventsCh
 
 	// DB
 	db *db.DB
@@ -64,14 +59,18 @@ type runnerHandler struct {
 
 func newRunnerHandler(l *log.Logger) *runnerHandler {
 	return &runnerHandler{
-		logger:                      l,
-		symbolMarkChMap:             make(map[string]map[string]chan contract.Mark),
-		symbolEntryTakenMutex:       make(map[string]*sync.Mutex),
-		exchangeUserMap:             make(map[string]exchange.Exchanger),
-		disableContractStrategyCh:   make(chan string),
-		outOfSyncContractStrategyCh: make(chan string),
-		resetContractStrategyCh:     make(chan string),
-		eventStopCh:                 make(chan bool),
+		logger:                l,
+		symbolMarkChMap:       make(map[string]map[string]chan contract.Mark),
+		symbolEntryTakenMutex: make(map[string]*sync.Mutex),
+		exchangeUserMap:       make(map[string]exchange.Exchanger),
+		eventsStopCh:          make(chan bool),
+		eventsCh: strategy.EventsCh{
+			Enable:    make(chan string),
+			Disable:   make(chan string),
+			Restart:   make(chan string),
+			OutOfSync: make(chan string),
+			Reset:     make(chan string),
+		},
 	}
 }
 
@@ -81,6 +80,57 @@ func (h *runnerHandler) setLogger(l *log.Logger) {
 
 func (h *runnerHandler) setDB(db *db.DB) {
 	h.db = db
+}
+
+func (h *runnerHandler) listenEvents() {
+	for {
+		select {
+		case <-h.eventsStopCh:
+			// Exit
+			h.eventsStopCh <- true
+			return
+
+		// Enable/start a strategy
+		case uuid := <-h.eventsCh.Enable:
+			h.enableContractStrategy(uuid)
+
+		// Disable a strategy
+		case uuid := <-h.eventsCh.Disable:
+			h.disableContractStrategy(uuid)
+
+			// NOTE workaround, please see the detail in another comment
+			time.Sleep(time.Millisecond * 10)
+			r, ok := h.runnerChMap.Load(uuid)
+			if ok {
+				close(r.(*runner.ContractStrategyRunner).StopCh)
+			}
+
+		// Restart a strategy
+		case uuid := <-h.eventsCh.Restart:
+			// TODO
+			fmt.Println(uuid)
+
+		// Process a strategy out of sync
+		case uuid := <-h.eventsCh.OutOfSync:
+			h.outOfSyncContractStrategy(uuid)
+
+		// Reset a strategy
+		case uuid := <-h.eventsCh.Reset:
+			h.resetContractStrategy(uuid)
+
+			// NOTE In order to avoid `panic: close of closed channel`, sleep here a little to buy time for
+			//      runner.beforeCloseFunc to clear the strategy from the map, so that it won't get strategy
+			//      here (in the following step) and won't close closed channal again
+			// Reproduction: send to this channel, then sleep 3 seconds at the end of `resetContractStrategy`
+			//               , trigger system signal by pressing `ctrl+c` so that stopCh could be closed twice
+			//               if there is no sleep blocking here
+			time.Sleep(time.Millisecond * 10)
+			r, ok := h.runnerChMap.Load(uuid)
+			if ok {
+				close(r.(*runner.ContractStrategyRunner).StopCh)
+			}
+		}
+	}
 }
 
 func (h *runnerHandler) process() {
@@ -96,33 +146,42 @@ func (h *runnerHandler) process() {
 	}
 
 	for _, cs := range contractStrategies {
-		// Get user data
-		user, err := h.setUserMap(cs.UserUuid)
-		if err != nil {
-			h.logger.Printf("[ERROR] strategy: '%s', user: '%s', symbol: '%s', err: %v\n", cs.Uuid, cs.UserUuid, cs.Symbol, err)
-			continue
-		}
-
-		if err := h.newContractStrategyRunner(cs, user); err != nil {
-			h.logger.Printf("[ERROR] strategy: '%s', user: '%s', symbol: '%s', err: %v\n", cs.Uuid, cs.UserUuid, cs.Symbol, err)
-
-			// Disable the contract strategy
-			h.outOfSyncContractStrategyCh <- cs.Uuid
-			h.disableContractStrategyCh <- cs.Uuid
-			continue
-		}
-
-		text := fmt.Sprintf("[Info] '%s %s' has been tracked (margin: $%s)", order.TranslateSideByInt(cs.Side), cs.Symbol, cs.Margin)
-		go h.sender.Send(user.TelegramChatId, text)
+		h.startContractStrategyRunner(cs)
 	}
 }
 
-func (h *runnerHandler) newContractStrategyRunner(cs db.ContractStrategy, user db.User) error {
-	if err := runner.ValidateExchangeOrdersDetails(&cs); err != nil {
+func (h *runnerHandler) startContractStrategyRunner(cs db.ContractStrategy) (err error) {
+	// NOTE Get data from DB every time, might need to consider potential performance issue in the future
+	user, err := h.db.GetUserByUuid(cs.UserUuid)
+	if err != nil {
+		h.logger.Printf("[ERROR] strategy: '%s', user: '%s', symbol: '%s', err: %v\n", cs.Uuid, cs.UserUuid, cs.Symbol, err)
+		return
+	}
+	// Set userMap by user uuid
+	h.userMap.Store(cs.UserUuid, user)
+
+	if err = h.newContractStrategyRunner(&cs, user); err != nil {
+		h.logger.Printf("[ERROR] strategy: '%s', user: '%s', symbol: '%s', err: %v\n", cs.Uuid, cs.UserUuid, cs.Symbol, err)
+
+		// Disable the contract strategy
+		h.eventsCh.OutOfSync <- cs.Uuid
+		h.eventsCh.Disable <- cs.Uuid
+		return
+	}
+
+	text := fmt.Sprintf("[Info] '%s %s' has been tracked (margin: $%s)", order.TranslateSideByInt(cs.Side), cs.Symbol, cs.Margin)
+	go h.sender.Send(user.TelegramChatId, text)
+	return nil
+}
+
+// NOTE Do not pass pointer of db.ContractStrategy because the last step for  goroutine could be overriden by the next one in the loop
+//      It's fine if the caller isn't in the loop. Just in case, pass by value here is safer
+func (h *runnerHandler) newContractStrategyRunner(cs *db.ContractStrategy, user *db.User) error {
+	if err := runner.ValidateExchangeOrdersDetails(cs); err != nil {
 		return fmt.Errorf("Check 'exchange_orders_details', err: %v", err)
 	}
 
-	r, err := runner.NewContractStrategyRunner(&cs)
+	r, err := runner.NewContractStrategyRunner(cs)
 	if err != nil {
 		return fmt.Errorf("Failed to new contract strategy runner, err: %v", err)
 	}
@@ -130,12 +189,10 @@ func (h *runnerHandler) newContractStrategyRunner(cs db.ContractStrategy, user d
 	r.SetLogger(h.logger)
 	r.SetBeforeCloseFunc(h.stopContractStrategyRunner)
 	r.SetHandlerBlockWg(&h.blockWg)
-	r.SetDisableCh(h.disableContractStrategyCh)
-	r.SetOutOfSyncCh(h.outOfSyncContractStrategyCh)
-	r.SetResetCh(h.resetContractStrategyCh)
+	r.SetHandlerEventsCh(&h.eventsCh)
 
 	// New exchange client and set to the hook
-	if err = h.newExchangeUserMap(cs.Exchange, &user); err != nil {
+	if err = h.newExchangeUserMap(cs.Exchange, user); err != nil {
 		return err
 	}
 	r.SetExchangeForHook(h.exchangeUserMap[user.Uuid])
@@ -147,7 +204,7 @@ func (h *runnerHandler) newContractStrategyRunner(cs db.ContractStrategy, user d
 	r.SetSymbolEntryTakenMutexForHook(h.symbolEntryTakenMutex)
 
 	// Set user for hook
-	r.SetUser(&user)
+	r.SetUser(user)
 
 	// Set sender for contract strategy runner and hook
 	r.SetSender(h.sender)
@@ -169,75 +226,6 @@ func (h *runnerHandler) newSender() {
 		log.Fatal(err)
 	}
 	h.sender = sender
-}
-
-// NOTE FIXME Don't care about performance for now
-func (h *runnerHandler) setUserMap(userUuid string) (db.User, error) {
-	user, err := h.db.GetUserByUuid(userUuid)
-	if err != nil {
-		return db.User{}, fmt.Errorf("failed to get user, err: %v", err)
-	}
-	h.userMap.Store(userUuid, user)
-	return *user, nil
-}
-
-func (h *runnerHandler) listenEvents() {
-	for {
-		select {
-		case <-h.eventStopCh:
-			// Exit
-			h.eventStopCh <- true
-			return
-
-		case payload := <-h.apiEventCh:
-			// TODO unmarshal event payload
-			switch string(payload) {
-			case "enable_strategy":
-				// TODO close stopCh
-				// TODO Read strategy from DB
-				// TODO New strategy runner
-				// TODO start that strategy runner again
-			case "disable_strategy":
-				// TODO Get strategy from DB
-				// TODO Send to disableContractStrategyCh
-			case "reset_strategy":
-				// TODO Get strategy from DB
-				// TODO Send to resetContractStrategyCh
-			case "close_position":
-			}
-
-		// Disable a strategy
-		case uuid := <-h.disableContractStrategyCh:
-			h.disableContractStrategy(uuid)
-
-			// NOTE workaround, please see the detail in another comment
-			time.Sleep(time.Millisecond * 10)
-			r, ok := h.runnerChMap.Load(uuid)
-			if ok {
-				close(r.(*runner.ContractStrategyRunner).StopCh)
-			}
-
-		// Process a strategy out of sync
-		case uuid := <-h.outOfSyncContractStrategyCh:
-			h.outOfSyncContractStrategy(uuid)
-
-		// Reset a strategy
-		case uuid := <-h.resetContractStrategyCh:
-			h.resetContractStrategy(uuid)
-
-			// NOTE In order to avoid `panic: close of closed channel`, sleep here a little to buy time for
-			//      runner.beforeCloseFunc to clear the strategy from the map, so that it won't get strategy
-			//      here (in the following step) and won't close closed channal again
-			// Reproduction: send to this channel, then sleep 3 seconds at the end of `resetContractStrategy`
-			//               , trigger system signal by pressing `ctrl+c` so that stopCh could be closed twice
-			//               if there is no sleep blocking here
-			time.Sleep(time.Millisecond * 10)
-			r, ok := h.runnerChMap.Load(uuid)
-			if ok {
-				close(r.(*runner.ContractStrategyRunner).StopCh)
-			}
-		}
-	}
 }
 
 func (h *runnerHandler) newExchangeUserMap(name string, user *db.User) error {
@@ -314,8 +302,8 @@ func (h *runnerHandler) stopAll() {
 	h.blockWg.Wait()
 
 	// Make sure all strategies have been stopped then stop listening events
-	h.eventStopCh <- true
-	<-h.eventStopCh
+	h.eventsStopCh <- true
+	<-h.eventsStopCh
 }
 
 func (h *runnerHandler) broadcastMark(symbol string, mark contract.Mark) {
@@ -330,10 +318,62 @@ func (h *runnerHandler) broadcastMark(symbol string, mark contract.Mark) {
 	}
 }
 
+// Get enabled strategy from DB
+func (h *runnerHandler) enableContractStrategy(uuid string) {
+	cs, err := h.db.GetContractStrategyByUuid(uuid)
+	if err != nil {
+		h.logger.Printf("[Error] enableContractStrategy - strategy '%s' not found", uuid)
+		return
+	}
+	if cs.Enabled == 1 {
+		h.logger.Printf("[Error] strategy '%s' has been enabled already", uuid)
+		return
+	}
+
+	// Make sure it isn't in the list
+	_, ok := h.runnerChMap.Load(uuid)
+	if ok {
+		h.logger.Printf("[Error] enableContractStrategy - strategy '%s' is already in the map", uuid)
+		return
+	}
+
+	// Start and new contract strategy runner
+	if err := h.startContractStrategyRunner(*cs); err != nil {
+		return
+	}
+
+	// Get user data
+	// NOTE This needs to be after `startContractStrategyRunner` as userMap is set there
+	user, ok := h.userMap.Load(cs.UserUuid)
+	if !ok {
+		h.logger.Printf("[Error] disableContractStrategyCh - userUuid '%s' not found from the map", uuid)
+		return
+	}
+
+	// Disable contract strategy
+	data := map[string]interface{}{
+		"enabled": 1,
+	}
+	if _, err := h.db.UpdateContractStrategy(cs.Uuid, data); err != nil {
+		h.logger.Printf("[ERROR] strategy: '%s', user: '%s', symbol: '%s', err: %v", cs.Uuid, cs.UserUuid, cs.Symbol, err)
+		if ok {
+			text := fmt.Sprintf("[Error] '%s %s' Internal Server Error. Please check and reset your position and order", order.TranslateSideByInt(cs.Side), cs.Symbol)
+			go h.sender.Send(user.(*db.User).TelegramChatId, text)
+		}
+		return
+	}
+
+	h.logger.Printf("[Info] strategy: '%s', user: '%s', symbol: '%s' has been enabled", cs.Uuid, cs.UserUuid, cs.Symbol)
+	if ok {
+		text := fmt.Sprintf("[Info] '%s %s' has been enabled", order.TranslateSideByInt(cs.Side), cs.Symbol)
+		go h.sender.Send(user.(*db.User).TelegramChatId, text)
+	}
+}
+
 func (h *runnerHandler) disableContractStrategy(uuid string) {
 	r, ok := h.runnerChMap.Load(uuid)
 	if !ok {
-		h.logger.Printf("[Error] disableContractStrategyCh - strategyUuid '%s' not found from the map", uuid)
+		h.logger.Printf("[Error] disableContractStrategyCh - strategy '%s' not found from the map", uuid)
 		return
 	}
 
@@ -367,15 +407,12 @@ func (h *runnerHandler) disableContractStrategy(uuid string) {
 		text := fmt.Sprintf("[Info] '%s %s' has been disabled", order.TranslateSideByInt(cs.Side), cs.Symbol)
 		go h.sender.Send(user.(*db.User).TelegramChatId, text)
 	}
-
-	h.logger.Println("sleep 3s")
-	time.Sleep(time.Second * 3)
 }
 
 func (h *runnerHandler) outOfSyncContractStrategy(uuid string) {
 	r, ok := h.runnerChMap.Load(uuid)
 	if !ok {
-		h.logger.Printf("[Error] disableContractStrategyCh - uuid '%s' not found from the map", uuid)
+		h.logger.Printf("[Error] outOfSyncContractStrategy - uuid '%s' not found from the map", uuid)
 		return
 	}
 
@@ -414,7 +451,7 @@ func (h *runnerHandler) outOfSyncContractStrategy(uuid string) {
 func (h *runnerHandler) resetContractStrategy(uuid string) {
 	r, ok := h.runnerChMap.Load(uuid)
 	if !ok {
-		h.logger.Printf("[Error] strategyUuid '%s' not found from the map", uuid)
+		h.logger.Printf("[Error] strategy '%s' not found from the map", uuid)
 		return
 	}
 

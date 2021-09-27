@@ -94,12 +94,17 @@ func (h *httpHandler) strategy(w http.ResponseWriter, r *http.Request) {
 	query := r.URL.Query()
 	action := strings.Trim(query.Get("action"), " ")
 	uuid := strings.Trim(query.Get("uuid"), " ")
-	fmt.Println(uuid)
+	h.logger.Printf("action: '%s', uuid: '%s'", action, uuid)
 
 	switch action {
+	// TODO
 	case "enable":
-	case "disable":
+		h.runnerHandler.eventsCh.Enable <- uuid
 	case "restart":
+	case "disable":
+		h.runnerHandler.eventsCh.Disable <- uuid
+	case "reset":
+		h.runnerHandler.eventsCh.Reset <- uuid
 	case "close_position":
 	default:
 		w.WriteHeader(http.StatusBadRequest)
