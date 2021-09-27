@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"log"
 	"net/http"
@@ -87,7 +88,13 @@ func (h *httpHandler) list(w http.ResponseWriter, r *http.Request) {
 		uuids = append(uuids, key.(string))
 		return true
 	})
-	fmt.Fprintf(w, "%+v", uuids)
+	b, err := json.Marshal(uuids)
+	if err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		fmt.Fprint(w, err)
+		return
+	}
+	fmt.Fprint(w, string(b))
 }
 
 func (h *httpHandler) strategy(w http.ResponseWriter, r *http.Request) {
@@ -96,16 +103,21 @@ func (h *httpHandler) strategy(w http.ResponseWriter, r *http.Request) {
 	uuid := strings.Trim(query.Get("uuid"), " ")
 	h.logger.Printf("action: '%s', uuid: '%s'", action, uuid)
 
+	if action == "" || uuid == "" {
+		w.WriteHeader(http.StatusBadRequest)
+		fmt.Fprint(w, "invalid params")
+		return
+	}
+
 	switch action {
-	// TODO
+	case "restart":
+		h.runnerHandler.eventsCh.Restart <- uuid
 	case "enable":
 		h.runnerHandler.eventsCh.Enable <- uuid
-	case "restart":
 	case "disable":
 		h.runnerHandler.eventsCh.Disable <- uuid
-	case "reset":
-		h.runnerHandler.eventsCh.Reset <- uuid
 	case "close_position":
+		// TODO
 	default:
 		w.WriteHeader(http.StatusBadRequest)
 		fmt.Fprintf(w, "action '%s' not supported", action)
