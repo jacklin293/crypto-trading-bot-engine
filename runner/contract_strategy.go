@@ -164,7 +164,7 @@ func (r *ContractStrategyRunner) checkPrice(mark *contract.Mark) {
 		}
 	}()
 
-	// NOTE For DEBUG
+	// FIXME For DEBUG
 	// r.logger.Println(r.ContractStrategy.Symbol, r.ContractStrategy.Uuid, mark.Time.Format("2006-01-02 15:04:05"), mark.Price)
 
 	halted, err := r.contract.CheckPrice(*mark)

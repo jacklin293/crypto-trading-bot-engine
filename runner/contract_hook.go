@@ -222,7 +222,7 @@ func (ch *contractHook) StopLossTriggered(c *contract.Contract) (bool, error) {
 	text := fmt.Sprintf("[Stop-loss] '%s %s' has been triggered", order.TranslateSideByInt(ch.contractStrategy.Side), ch.contractStrategy.Symbol)
 	ch.notify(text)
 
-	orderInfo, err := ch.closeOpenPosition("StopLossTriggered")
+	orderInfo, err := ch.closeOpenPosition(false)
 	if err != nil {
 		// The error indicates that the position has been closed already
 		if !strings.Contains(err.Error(), "Invalid reduce-only order") {
@@ -291,17 +291,17 @@ func (ch *contractHook) EntryBaselineTriggerUpdated(c *contract.Contract) {
 	}
 }
 
+// NOTE Take-profit will always halt the strategy regardless of whether err is thrown
 func (ch *contractHook) TakeProfitTriggered(c *contract.Contract) error {
 	text := fmt.Sprintf("[Take-profit] '%s %s' has been triggered", order.TranslateSideByInt(ch.contractStrategy.Side), ch.contractStrategy.Symbol)
 	ch.notify(text)
-	err := ch.closePosition()
 
 	// Update memory data
 	ch.contractStrategy.Enabled = 0
 
 	// NOTE Update DB data by event channel
 	// Let the caller to decide whether it should be reset by returning `halted` and `err`
-	return err
+	return ch.closePosition()
 }
 
 // NOTE datatypes.JSONMap will escapte `<` into `\u003c`, but it's fine. It can still be unmarchal and turned back to `=` without issue
@@ -340,7 +340,8 @@ func (ch *contractHook) ParamsUpdated(c *contract.Contract) (bool, error) {
 // NOTE Because of cooldown period, the real breakout peak might not be the same as breakout peak in memory
 //      , as checkPrice is still running and update the value, but it's fine
 func (ch *contractHook) BreakoutPeakUpdated(c *contract.Contract) {
-	ch.logger.Printf("breakout peak {price: %s, time: %s}", c.BreakoutPeak.Price, c.BreakoutPeak.Time.Format("2006-01-02 15:04"))
+	// FIXME for debug
+	// ch.logger.Printf("breakout peak {price: %s, time: %s}", c.BreakoutPeak.Price, c.BreakoutPeak.Time.Format("2006-01-02 15:04:05"))
 
 	// Update memory data
 	ch.contractStrategy.Params["breakout_peak"] = map[string]interface{}{
@@ -361,7 +362,7 @@ func (ch *contractHook) BreakoutPeakUpdated(c *contract.Contract) {
 func (ch *contractHook) closePosition() error {
 	var text string
 
-	orderInfo, err := ch.closeOpenPosition("closePosition")
+	orderInfo, err := ch.closeOpenPosition(true)
 	if err != nil {
 		return fmt.Errorf("closePosition > %v", err)
 	}
@@ -386,7 +387,7 @@ func (ch *contractHook) closePosition() error {
 	return nil
 }
 
-func (ch *contractHook) closeOpenPosition(caller string) (map[string]interface{}, error) {
+func (ch *contractHook) closeOpenPosition(reportIfFailed bool) (map[string]interface{}, error) {
 	var text string
 
 	// Close position
@@ -400,7 +401,7 @@ func (ch *contractHook) closeOpenPosition(caller string) (map[string]interface{}
 	orderId, err := ch.exchange.RetryClosePosition(ch.contractStrategy.Symbol, order.Side(ch.contractStrategy.Side), size, 30, 2)
 	if err != nil {
 		// position could be closed by stop-loss trigger order, it's fine for caller `StopLossTriggered`
-		if caller == "closePosition" {
+		if reportIfFailed {
 			text = fmt.Sprintf("[Error] %s %s - failed to close position, please check and reset your position and order, err: %v", order.TranslateSideByInt(ch.contractStrategy.Side), ch.contractStrategy.Symbol, err)
 			ch.notify(text)
 		}
