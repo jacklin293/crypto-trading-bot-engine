@@ -41,9 +41,6 @@ type runnerHandler struct {
 	// Message sender
 	sender message.Messenger
 
-	// Receive events from api
-	apiEventCh chan []byte // json payload
-
 	// This is the stop channel for handler itself
 	eventsStopCh chan bool
 

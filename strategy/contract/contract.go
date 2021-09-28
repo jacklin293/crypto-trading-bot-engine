@@ -16,6 +16,8 @@ const (
 	CLOSED  Status = 0
 	OPENED  Status = 1
 	UNKNOWN Status = 2
+
+	BREAKOUT_PEAK_TRIGGERED_INTERVAL = 20 // second
 )
 
 type Mark struct {
@@ -37,6 +39,10 @@ type Hooker interface {
 
 	// Entry order trigger gets updated
 	ParamsUpdated(*Contract) (bool, error)
+
+	// TODO test
+	// Breakout peak updated after cooldown
+	BreakoutPeakUpdated(*Contract)
 }
 
 type Contract struct {
@@ -54,6 +60,9 @@ type Contract struct {
 	BreakoutPeak struct {
 		Time  time.Time
 		Price decimal.Decimal
+
+		// Trigger a funtion after a period of cooldown time when it gets updated
+		lastTriggeredTime time.Time // the last triggered time
 	}
 
 	hook Hooker
@@ -115,6 +124,33 @@ func NewContract(side order.Side, data map[string]interface{}) (c *Contract, err
 		}
 	}
 	c.StopLossOrder = stopLossOrder
+
+	// Breakout peak
+	bp, ok := data["breakout_peak"].(map[string]interface{})
+	if ok {
+		// time
+		t, ok := bp["time"].(string)
+		if !ok {
+			return c, errors.New("'time' is missing")
+		}
+		tt, err := time.Parse(time.RFC3339, t)
+		if err != nil {
+			return c, fmt.Errorf("failed to parse 'time', err: %v", err)
+		}
+
+		// price
+		p, ok := bp["price"].(string)
+		if !ok {
+			return c, errors.New("'price' is missing or not string")
+		}
+		pp, err := decimal.NewFromString(p)
+		if err != nil {
+			return c, errors.New("'price' isn't a stringified number")
+		}
+
+		c.BreakoutPeak.Time = tt
+		c.BreakoutPeak.Price = pp
+	}
 
 	return
 }
@@ -190,7 +226,13 @@ func (c *Contract) CheckPrice(mark Mark) (halted bool, err error) {
 		}
 	case OPENED:
 		if c.EntryType == order.ENTRY_BASELINE && c.StopLossOrder != nil && c.StopLossOrder.(*order.StopLoss).BaselineReadjustmentEnabled {
-			c.recordBreakoutPeak(mark.Time, mark.Price)
+			if c.recordBreakoutPeak(mark.Time, mark.Price) {
+				// If the breakout has been updated, trigger the function after cooldown
+				if mark.Time.After(c.BreakoutPeak.lastTriggeredTime.Add(time.Second * time.Duration(BREAKOUT_PEAK_TRIGGERED_INTERVAL))) {
+					c.hook.BreakoutPeakUpdated(c)
+					c.BreakoutPeak.lastTriggeredTime = mark.Time
+				}
+			}
 		}
 
 		// Check if stop-loss order is triggered
@@ -258,19 +300,23 @@ func (c *Contract) setBreakoutPeak(t time.Time, p decimal.Decimal) {
 }
 
 // entry_type 'baseline' only
-func (c *Contract) recordBreakoutPeak(t time.Time, p decimal.Decimal) {
+func (c *Contract) recordBreakoutPeak(t time.Time, p decimal.Decimal) bool {
+	updated := false
 	switch c.Side {
 	case order.LONG:
 		if p.GreaterThanOrEqual(c.BreakoutPeak.Price) {
 			c.BreakoutPeak.Time = t
 			c.BreakoutPeak.Price = p
+			updated = true
 		}
 	case order.SHORT:
 		if p.LessThanOrEqual(c.BreakoutPeak.Price) {
 			c.BreakoutPeak.Time = t
 			c.BreakoutPeak.Price = p
+			updated = true
 		}
 	}
+	return updated
 }
 
 // entry_type 'baseline' only

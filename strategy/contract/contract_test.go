@@ -54,6 +54,9 @@ func (th *testHook) ParamsUpdated(c *Contract) (bool, error) {
 	return false, nil
 }
 
+func (th *testHook) BreakoutPeakUpdated(c *Contract) {
+}
+
 // entry_type 'limit'
 func TestLimitAllOrders(t *testing.T) {
 	testcases := []struct {

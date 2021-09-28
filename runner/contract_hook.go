@@ -268,6 +268,8 @@ func (ch *contractHook) StopLossTriggered(c *contract.Contract) (bool, error) {
 		ch.notify(text)
 		return true, fmt.Errorf("StopLossTriggered - failed to update 'position_status', err: %v", err)
 	}
+
+	// Update memory data
 	ch.contractStrategy.PositionStatus = int64(contract.CLOSED)
 	return false, nil
 }
@@ -305,20 +307,22 @@ func (ch *contractHook) TakeProfitTriggered(c *contract.Contract) error {
 // NOTE datatypes.JSONMap will escapte `<` into `\u003c`, but it's fine. It can still be unmarchal and turned back to `=` without issue
 // NOTE datatypes.JSONMap will turm time into `2021-09-15T04:00:00Z`
 func (ch *contractHook) ParamsUpdated(c *contract.Contract) (bool, error) {
-	params := datatypes.JSONMap{
+	// NOTE Don't save `breakout_peak`, because we want it being reset after stop-loss order triggered
+	// Update memory data
+	ch.contractStrategy.Params = datatypes.JSONMap{
 		"entry_type":  c.EntryType,
 		"entry_order": c.EntryOrder,
 	}
 	if c.StopLossOrder != nil {
-		params["stop_loss_order"] = c.StopLossOrder
+		ch.contractStrategy.Params["stop_loss_order"] = c.StopLossOrder
 	}
 	if c.TakeProfitOrder != nil {
-		params["take_profit_order"] = c.TakeProfitOrder
+		ch.contractStrategy.Params["take_profit_order"] = c.TakeProfitOrder
 	}
 
 	// Update db
 	contractStrategy := map[string]interface{}{
-		"params": params,
+		"params": ch.contractStrategy.Params,
 	}
 	if _, err := ch.db.UpdateContractStrategy(ch.contractStrategy.Uuid, contractStrategy); err != nil {
 		text := fmt.Sprintf("[Error] '%s %s' Internal Server Error. Please check and reset your position and order", order.TranslateSideByInt(ch.contractStrategy.Side), ch.contractStrategy.Symbol)
@@ -327,6 +331,30 @@ func (ch *contractHook) ParamsUpdated(c *contract.Contract) (bool, error) {
 	}
 
 	return false, nil
+}
+
+// NOTE We don't dont to worry about reset process
+// NOTE When entry triggered, regardless of what breakout peak is, it will be overriden by `setBreakoutPeak`
+// NOTE When stop-loss triggered, it reset breakout peak, and trigger `ParamsUpdated` at the end, which doesn't write
+//      `breakout peak` into DB
+// NOTE Because of cooldown period, the real breakout peak might not be the same as breakout peak in memory
+//      , as checkPrice is still running and update the value, but it's fine
+func (ch *contractHook) BreakoutPeakUpdated(c *contract.Contract) {
+	ch.logger.Printf("breakout peak {price: %s, time: %s}", c.BreakoutPeak.Price, c.BreakoutPeak.Time.Format("2006-01-02 15:04"))
+
+	// Update memory data
+	ch.contractStrategy.Params["breakout_peak"] = map[string]interface{}{
+		"time":  c.BreakoutPeak.Time,
+		"price": c.BreakoutPeak.Price,
+	}
+
+	// Update db
+	contractStrategy := map[string]interface{}{
+		"params": ch.contractStrategy.Params,
+	}
+	if _, err := ch.db.UpdateContractStrategy(ch.contractStrategy.Uuid, contractStrategy); err != nil {
+		ch.logger.Printf("[Error] failed to save breakout peak, err: %v", err)
+	}
 }
 
 // Let the caller to decide whether it should be reset by returning `halted` and `err`
