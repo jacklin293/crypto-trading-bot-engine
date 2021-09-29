@@ -84,7 +84,7 @@ func (h *httpHandler) status(w http.ResponseWriter, r *http.Request) {
 
 func (h *httpHandler) list(w http.ResponseWriter, r *http.Request) {
 	var uuids []string
-	h.runnerHandler.runnerChMap.Range(func(key, _ interface{}) bool {
+	h.runnerHandler.runnerByUuidMap.Range(func(key, _ interface{}) bool {
 		uuids = append(uuids, key.(string))
 		return true
 	})

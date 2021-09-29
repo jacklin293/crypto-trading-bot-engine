@@ -29,6 +29,10 @@ type ContractStrategyRunner struct {
 	StopCh chan bool
 	MarkCh chan contract.Mark
 
+	// Status control
+	CheckPriceEnabled bool // Don't check price when runner is gonna to stop
+	stopChClosed      bool // Let handler know whether StopCh has been closed
+
 	// DB
 	db *db.DB
 
@@ -45,6 +49,9 @@ type ContractStrategyRunner struct {
 
 	// Make sure strategy finishes its work before being killed
 	RunnerBlockWg sync.WaitGroup
+
+	// Make sure there is only one task processed at one time
+	RunnerMutex sync.Mutex
 
 	// Send the notification, only support telegram atm
 	sender message.Messenger // all users use the same one, but sent with different chat_id
@@ -75,6 +82,7 @@ func NewContractStrategyRunner(cs *db.ContractStrategy) (*ContractStrategyRunner
 		contractHook:              ch,
 		StopCh:                    make(chan bool),
 		MarkCh:                    make(chan contract.Mark),
+		CheckPriceEnabled:         true,
 		lastAliveNotificationTime: time.Now(), // Don't send when it just launches
 	}
 	return s, err
@@ -120,8 +128,25 @@ func (r *ContractStrategyRunner) SetHandlerEventsCh(ch *strategy.EventsCh) {
 	r.handlerEventsCh = ch
 }
 
+func (r *ContractStrategyRunner) Stop() {
+	if !r.stopChClosed {
+		// In order to avoid `panic: close of closed channel`, check first
+		r.stopChClosed = true
+
+		// This is necessary, if stopCh sent first and broadcastMark keeps sending Mark to nowhere, it would get stuck
+		// If runner MarhCh get stuck, handler stopContractStrategyRunner will get stuck too, it would cause that
+		// runner beforeCloseFunc can't be finished and gets stuck. Basically, it's a deadlock hell
+		r.CheckPriceEnabled = false
+		close(r.StopCh)
+	}
+}
+
 // Start
 func (r *ContractStrategyRunner) Run() {
+	// NOTE For graceful shutdown
+	r.handlerBlockWg.Add(1)
+	defer r.handlerBlockWg.Done()
+
 	halted := false
 	for {
 		select {
@@ -130,7 +155,7 @@ func (r *ContractStrategyRunner) Run() {
 			break
 		case mark := <-r.MarkCh:
 			// If 'CheckPrice' is still in progress, ignore the incoming prices unitl it's finished
-			if r.ignoreIncomingMark {
+			if !r.CheckPriceEnabled || r.ignoreIncomingMark {
 				break
 			}
 			r.ignoreIncomingMark = true
@@ -141,18 +166,19 @@ func (r *ContractStrategyRunner) Run() {
 		}
 	}
 
-	// This might not be necessary, but better to wait until removal process done
-	r.handlerBlockWg.Add(1)
-	defer r.handlerBlockWg.Done()
 	r.RunnerBlockWg.Wait()
 	r.beforeCloseFunc(r.ContractStrategy.Symbol, r.ContractStrategy.Uuid)
 }
 
 // Check mark price
 func (r *ContractStrategyRunner) checkPrice(mark *contract.Mark) {
+	r.RunnerMutex.Lock()
+	defer r.RunnerMutex.Unlock()
+
 	// for graceful shutdown, block everything in progress until they are done
 	r.handlerBlockWg.Add(1)
 	defer r.handlerBlockWg.Done()
+
 	defer func() { r.ignoreIncomingMark = false }()
 	defer func() {
 		if e := recover(); e != nil {
@@ -164,11 +190,13 @@ func (r *ContractStrategyRunner) checkPrice(mark *contract.Mark) {
 		}
 	}()
 
-	// FIXME For DEBUG
+	// NOTE For DEBUG
 	// r.logger.Println(r.ContractStrategy.Symbol, r.ContractStrategy.Uuid, mark.Time.Format("2006-01-02 15:04:05"), mark.Price)
 
 	halted, err := r.contract.CheckPrice(*mark)
 	if err != nil && halted { // scenario: DB fails
+		// Stop receiving Mark
+		r.CheckPriceEnabled = false
 		r.logger.Printf("[ERROR] strategy: '%s', user: '%s', symbol: '%s', positionStatus: '%s' - halted, err: %s\n", r.ContractStrategy.Uuid, r.ContractStrategy.UserUuid, r.ContractStrategy.Symbol, contract.TranslateStatusByInt(r.ContractStrategy.PositionStatus), err)
 		r.handlerEventsCh.OutOfSync <- r.ContractStrategy.Uuid
 		r.handlerEventsCh.Disable <- r.ContractStrategy.Uuid
@@ -178,6 +206,8 @@ func (r *ContractStrategyRunner) checkPrice(mark *contract.Mark) {
 		// Sleep a while and try again
 		time.Sleep(time.Second * 3)
 	} else if halted { // scenario: take-profit, err is nil
+		// Stop receiving Mark
+		r.CheckPriceEnabled = false
 		r.logger.Printf("[INFO] strategy: '%s', user: '%s', symbol: '%s', positionStatus: '%s' is done!\n", r.ContractStrategy.Uuid, r.ContractStrategy.UserUuid, r.ContractStrategy.Symbol, contract.TranslateStatusByInt(r.ContractStrategy.PositionStatus))
 		r.handlerEventsCh.Reset <- r.ContractStrategy.Uuid
 	}

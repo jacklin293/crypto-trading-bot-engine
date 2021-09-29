@@ -307,7 +307,7 @@ func (ch *contractHook) TakeProfitTriggered(c *contract.Contract) error {
 // NOTE datatypes.JSONMap will escapte `<` into `\u003c`, but it's fine. It can still be unmarchal and turned back to `=` without issue
 // NOTE datatypes.JSONMap will turm time into `2021-09-15T04:00:00Z`
 func (ch *contractHook) ParamsUpdated(c *contract.Contract) (bool, error) {
-	// NOTE Don't save `breakout_peak`, because we want it being reset after stop-loss order triggered
+	// NOTE Don't save `breakout_peak`, because we want it to be reset after stop-loss order triggered
 	// Update memory data
 	ch.contractStrategy.Params = datatypes.JSONMap{
 		"entry_type":  c.EntryType,
@@ -341,7 +341,8 @@ func (ch *contractHook) ParamsUpdated(c *contract.Contract) (bool, error) {
 //      , as checkPrice is still running and update the value, but it's fine
 func (ch *contractHook) BreakoutPeakUpdated(c *contract.Contract) {
 	// FIXME for debug
-	// ch.logger.Printf("breakout peak {price: %s, time: %s}", c.BreakoutPeak.Price, c.BreakoutPeak.Time.Format("2006-01-02 15:04:05"))
+	text := fmt.Sprintf("breakout peak {price: %s, time: %s}", c.BreakoutPeak.Price, c.BreakoutPeak.Time.Format("2006-01-02 15:04:05"))
+	ch.logger.Printf("[Debug] sid: %s uid: %s sym: %s text: '%s'", ch.contractStrategy.Uuid, ch.contractStrategy.UserUuid, ch.contractStrategy.Symbol, text)
 
 	// Update memory data
 	ch.contractStrategy.Params["breakout_peak"] = map[string]interface{}{
