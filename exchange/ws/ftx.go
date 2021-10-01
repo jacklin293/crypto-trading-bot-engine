@@ -2,7 +2,7 @@ package ws
 
 import (
 	"context"
-	"crypto-trading-bot-main/strategy/contract"
+	"crypto-trading-bot-engine/strategy/contract"
 	"fmt"
 	"sync"
 	"time"

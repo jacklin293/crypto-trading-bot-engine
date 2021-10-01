@@ -1,13 +1,13 @@
 package main
 
 import (
-	"crypto-trading-bot-main/db"
-	"crypto-trading-bot-main/exchange"
-	"crypto-trading-bot-main/message"
-	"crypto-trading-bot-main/runner"
-	"crypto-trading-bot-main/strategy"
-	"crypto-trading-bot-main/strategy/contract"
-	"crypto-trading-bot-main/strategy/order"
+	"crypto-trading-bot-engine/db"
+	"crypto-trading-bot-engine/exchange"
+	"crypto-trading-bot-engine/message"
+	"crypto-trading-bot-engine/runner"
+	"crypto-trading-bot-engine/strategy"
+	"crypto-trading-bot-engine/strategy/contract"
+	"crypto-trading-bot-engine/strategy/order"
 	"fmt"
 	"log"
 	"sync"
@@ -302,7 +302,7 @@ func (h *runnerHandler) broadcastMark(symbol string, mark contract.Mark) {
 	runners, ok := h.runnersBySymbolMap[symbol]
 	if ok {
 		for _, r := range runners {
-			// NOTE Check StopChClosed first, it might block ws handler if StopCh has been closed
+			// NOTE Check this first, otherwise it might block ws handler due to no receiver if StopCh has been closed
 			if r.CheckPriceEnabled {
 				r.MarkCh <- mark
 			}

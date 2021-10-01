@@ -1,7 +1,7 @@
 package rest
 
 import (
-	"crypto-trading-bot-main/strategy/order"
+	"crypto-trading-bot-engine/strategy/order"
 	"errors"
 	"log"
 	"net/http"

@@ -7,12 +7,12 @@ import (
 	"sync"
 	"time"
 
-	"crypto-trading-bot-main/db"
-	"crypto-trading-bot-main/exchange"
-	"crypto-trading-bot-main/message"
-	"crypto-trading-bot-main/strategy"
-	"crypto-trading-bot-main/strategy/contract"
-	"crypto-trading-bot-main/strategy/order"
+	"crypto-trading-bot-engine/db"
+	"crypto-trading-bot-engine/exchange"
+	"crypto-trading-bot-engine/message"
+	"crypto-trading-bot-engine/strategy"
+	"crypto-trading-bot-engine/strategy/contract"
+	"crypto-trading-bot-engine/strategy/order"
 )
 
 const (

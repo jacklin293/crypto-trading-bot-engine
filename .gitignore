@@ -15,7 +15,7 @@
 vendor/
 
 # binary
-crypto-trading-bot-main
+crypto-trading-bot-engine
 
 # todo plans
 TODO.md

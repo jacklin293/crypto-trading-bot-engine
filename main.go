@@ -1,7 +1,7 @@
 package main
 
 import (
-	"crypto-trading-bot-main/db"
+	"crypto-trading-bot-engine/db"
 	"fmt"
 	"log"
 	"os"

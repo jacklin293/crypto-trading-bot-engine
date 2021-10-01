@@ -1,10 +1,10 @@
 package exchange
 
 import (
-	"crypto-trading-bot-main/exchange/rest"
-	"crypto-trading-bot-main/exchange/ws"
-	"crypto-trading-bot-main/strategy/contract"
-	"crypto-trading-bot-main/strategy/order"
+	"crypto-trading-bot-engine/exchange/rest"
+	"crypto-trading-bot-engine/exchange/ws"
+	"crypto-trading-bot-engine/strategy/contract"
+	"crypto-trading-bot-engine/strategy/order"
 	"fmt"
 
 	"github.com/shopspring/decimal"

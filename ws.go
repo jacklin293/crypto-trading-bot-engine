@@ -1,8 +1,8 @@
 package main
 
 import (
-	"crypto-trading-bot-main/db"
-	"crypto-trading-bot-main/exchange"
+	"crypto-trading-bot-engine/db"
+	"crypto-trading-bot-engine/exchange"
 	"log"
 	"time"
 
