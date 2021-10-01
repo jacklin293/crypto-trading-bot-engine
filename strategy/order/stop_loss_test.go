@@ -1,7 +1,7 @@
 package order
 
 import (
-	"crypto-trading-bot-main/strategy/trigger"
+	"crypto-trading-bot-engine/strategy/trigger"
 	"reflect"
 	"testing"
 

@@ -1,5 +1,5 @@
 run:
-	go build && ./crypto-trading-bot-main
+	go build && ./crypto-trading-bot-engine
 test:
 	go test -count=1 ./...
 dump:

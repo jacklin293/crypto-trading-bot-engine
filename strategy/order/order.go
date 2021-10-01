@@ -11,8 +11,8 @@ import (
 type Side int64
 
 const (
+	SHORT Side = 0
 	LONG  Side = 1
-	SHORT Side = 2
 
 	ENTRY_LIMIT    = "limit"    // entry trigger is Limit trigger
 	ENTRY_BASELINE = "baseline" // entry trigger (Line trigger) and stop-loss trigger (Limit trigger) are based on baseline

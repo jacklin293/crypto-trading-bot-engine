@@ -57,3 +57,12 @@ func (db *DB) GetContractStrategyByUuid(uuid string) (*ContractStrategy, error) 
 	result := db.GormDB.Where("uuid = ?", uuid).First(&s)
 	return &s, result.Error
 }
+
+func (db *DB) GetContractStrategiesByUser(userUuid string) ([]ContractStrategy, int64, error) {
+	var css []ContractStrategy
+	result := db.GormDB.Where("user_uuid = ?", userUuid).Order("position_status DESC, enabled DESC").Find(&css)
+	if result.Error != nil && !errors.Is(result.Error, gorm.ErrRecordNotFound) {
+		return css, 0, result.Error
+	}
+	return css, result.RowsAffected, result.Error
+}

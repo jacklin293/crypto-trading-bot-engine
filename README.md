@@ -1,4 +1,4 @@
-# crypto-trading-bot-main
+# crypto-trading-bot-engine
 
 
 # Set up the environment

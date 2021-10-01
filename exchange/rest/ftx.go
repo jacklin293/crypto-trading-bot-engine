@@ -55,6 +55,22 @@ func (rest *FtxRest) validate(data map[string]interface{}) error {
 	return nil
 }
 
+func (rest *FtxRest) GetAccountInfo() (map[string]interface{}, error) {
+	r := make(map[string]interface{})
+	info, err := rest.client.Account.GetAccountInformation()
+	if err != nil {
+		return r, err
+	}
+
+	r["collateral"] = info.Collateral
+	r["free_collateral"] = info.FreeCollateral
+	r["maker_fee"] = info.MakerFee
+	r["taker_fee"] = info.TakerFee
+	r["username"] = info.Username
+	r["leverage"] = info.Leverage
+	return r, nil
+}
+
 func (rest *FtxRest) PlaceEntryOrder(symbol string, side order.Side, size decimal.Decimal) (int64, error) {
 	order, err := rest.client.Orders.PlaceOrder(&models.PlaceOrderPayload{
 		Market: symbol,
