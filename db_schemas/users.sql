@@ -27,7 +27,8 @@ CREATE TABLE `users` (
   `uuid` char(36) NOT NULL COMMENT 'UUID',
   `telegram_chat_id` int(11) DEFAULT NULL COMMENT 'Telegram chat_id',
   `username` varchar(30) NOT NULL COMMENT 'Account name',
-  `otp` text DEFAULT NULL COMMENT 'One-time password',
+  `password` text DEFAULT NULL COMMENT 'One-time password',
+  `password_expired_at` datetime DEFAULT NULL COMMENT 'Password expiry time',
   `exchange_api_info` longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_bin NOT NULL DEFAULT '{}' COMMENT 'Exchange API info' CHECK (json_valid(`exchange_api_info`)),
   `activated` tinyint(4) NOT NULL DEFAULT 1 COMMENT '0: inactivated 1: activated',
   `last_login_at` datetime DEFAULT NULL COMMENT 'Last login time',
@@ -48,4 +49,4 @@ CREATE TABLE `users` (
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2021-09-22  3:20:32
+-- Dump completed on 2021-10-02 17:42:04

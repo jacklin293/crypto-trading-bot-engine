@@ -58,6 +58,7 @@ func (db *DB) GetContractStrategyByUuid(uuid string) (*ContractStrategy, error) 
 	return &s, result.Error
 }
 
+// for API
 func (db *DB) GetContractStrategiesByUser(userUuid string) ([]ContractStrategy, int64, error) {
 	var css []ContractStrategy
 	result := db.GormDB.Where("user_uuid = ?", userUuid).Order("position_status DESC, enabled DESC").Find(&css)
