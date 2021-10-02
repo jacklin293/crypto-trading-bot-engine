@@ -89,10 +89,6 @@ func (h *runnerHandler) listenEvents() {
 			h.eventsStopCh <- true
 			return
 
-		// Restart a strategy
-		case uuid := <-h.eventsCh.Restart:
-			go h.restartContractStrategy(uuid)
-
 		// Enable/start a strategy
 		case uuid := <-h.eventsCh.Enable:
 			go h.enableContractStrategy(uuid)
@@ -113,7 +109,7 @@ func (h *runnerHandler) listenEvents() {
 	}
 }
 
-func (h *runnerHandler) process() {
+func (h *runnerHandler) start() {
 	// New sender
 	h.newSender()
 
@@ -131,6 +127,9 @@ func (h *runnerHandler) process() {
 			continue
 		}
 		h.startContractStrategyRunner(cs, user)
+
+		// NOTE avoid sening too many messages at a time
+		time.Sleep(time.Millisecond * 100)
 	}
 }
 
@@ -308,14 +307,6 @@ func (h *runnerHandler) broadcastMark(symbol string, mark contract.Mark) {
 			}
 		}
 	}
-}
-
-func (h *runnerHandler) restartContractStrategy(uuid string) {
-	h.disableContractStrategy(uuid)
-
-	// Wait for runner to finish 'stop' process completely
-	time.Sleep(time.Millisecond * 100)
-	h.enableContractStrategy(uuid)
 }
 
 func (h *runnerHandler) enableContractStrategy(uuid string) {

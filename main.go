@@ -25,7 +25,7 @@ func main() {
 	// runner
 	rh := newRunnerHandler(l)
 	rh.setDB(db)
-	go rh.process()
+	go rh.start()
 
 	// signal
 	sh := newSignalHandler(l)

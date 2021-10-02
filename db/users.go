@@ -18,9 +18,14 @@ type User struct {
 	UpdatedAt       time.Time
 }
 
-// TODO
 func (db *DB) GetUserByUuid(uuid string) (*User, error) {
 	var u User
 	result := db.GormDB.Where("uuid = ?", uuid).First(&u)
+	return &u, result.Error
+}
+
+func (db *DB) GetUserByName(name string) (*User, error) {
+	var u User
+	result := db.GormDB.Where("username = ?", name).First(&u)
 	return &u, result.Error
 }

@@ -110,14 +110,10 @@ func (h *httpHandler) strategy(w http.ResponseWriter, r *http.Request) {
 	}
 
 	switch action {
-	case "restart":
-		h.runnerHandler.eventsCh.Restart <- uuid
 	case "enable":
 		h.runnerHandler.eventsCh.Enable <- uuid
 	case "disable":
 		h.runnerHandler.eventsCh.Disable <- uuid
-	case "close_position":
-		// TODO
 	default:
 		w.WriteHeader(http.StatusBadRequest)
 		fmt.Fprintf(w, "action '%s' not supported", action)
