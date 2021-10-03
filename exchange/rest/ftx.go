@@ -62,12 +62,12 @@ func (rest *FtxRest) GetAccountInfo() (map[string]interface{}, error) {
 		return r, err
 	}
 
-	r["collateral"] = info.Collateral
-	r["free_collateral"] = info.FreeCollateral
-	r["maker_fee"] = info.MakerFee
-	r["taker_fee"] = info.TakerFee
-	r["username"] = info.Username
-	r["leverage"] = info.Leverage
+	r["collateral"] = info.Collateral          // decimal.Decimal
+	r["free_collateral"] = info.FreeCollateral // decimal.Decimal
+	r["maker_fee"] = info.MakerFee             // decimal.Decimal
+	r["taker_fee"] = info.TakerFee             // decimal.Decimal
+	r["username"] = info.Username              // string
+	r["leverage"] = info.Leverage              // decimal.Decimal
 	return r, nil
 }
 

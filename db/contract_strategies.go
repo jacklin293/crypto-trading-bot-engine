@@ -67,3 +67,9 @@ func (db *DB) GetContractStrategiesByUser(userUuid string) ([]ContractStrategy, 
 	}
 	return css, result.RowsAffected, result.Error
 }
+
+// for API
+func (db *DB) CreateContractStrategy(contractStrategy ContractStrategy) (int64, int64, error) {
+	result := db.GormDB.Model(ContractStrategy{}).Create(&contractStrategy)
+	return contractStrategy.Id, result.RowsAffected, result.Error
+}

@@ -18,9 +18,9 @@ type Symbol struct {
 }
 
 // TODO Filter by exchange
-func (db *DB) GetEnabledSymbols() ([]Symbol, int64, error) {
+func (db *DB) GetEnabledContractSymbols(exchange string) ([]Symbol, int64, error) {
 	var ss []Symbol
-	result := db.GormDB.Where("enabled = 1").Order("created_at DESC").Find(&ss)
+	result := db.GormDB.Where("enabled = 1 AND market_type = 0 AND exchange = ?", exchange).Order("created_at DESC").Find(&ss)
 	if result.Error != nil && !errors.Is(result.Error, gorm.ErrRecordNotFound) {
 		return ss, 0, result.Error
 	}

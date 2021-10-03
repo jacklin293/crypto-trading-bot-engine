@@ -41,7 +41,7 @@ func (h *wsHandler) setRunnerHandler(rh *runnerHandler) {
 }
 
 func (h *wsHandler) connect() {
-	rows, count, err := h.db.GetEnabledSymbols()
+	rows, count, err := h.db.GetEnabledContractSymbols("FTX")
 	if err != nil {
 		h.logger.Fatal("err:", err)
 	}
