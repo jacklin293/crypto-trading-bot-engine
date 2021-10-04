@@ -32,7 +32,7 @@ func (db *DB) GetUserByUsername(username string) (*User, error) {
 }
 
 // for API
-func (db *DB) GetUserByUsernameAndPassword(username string, password string) (*User, error) {
+func (db *DB) GetUserByUsernameByPassword(username string, password string) (*User, error) {
 	var u User
 	result := db.GormDB.Where("username = ? AND password = ? AND password != '' AND password IS NOT NULL AND password_expired_at > ?", username, password, time.Now()).First(&u)
 	if result.Error != nil {

@@ -69,6 +69,14 @@ func (db *DB) GetContractStrategiesByUser(userUuid string) ([]ContractStrategy, 
 }
 
 // for API
+
+func (db *DB) GetContractStrategyByUuidByUser(uuid string, userUuid string) (*ContractStrategy, error) {
+	var s ContractStrategy
+	result := db.GormDB.Where("uuid = ? AND user_uuid = ?", uuid, userUuid).First(&s)
+	return &s, result.Error
+}
+
+// for API
 func (db *DB) CreateContractStrategy(contractStrategy ContractStrategy) (int64, int64, error) {
 	result := db.GormDB.Model(ContractStrategy{}).Create(&contractStrategy)
 	return contractStrategy.Id, result.RowsAffected, result.Error

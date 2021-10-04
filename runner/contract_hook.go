@@ -85,6 +85,8 @@ func ValidateExchangeOrdersDetails(cs *db.ContractStrategy) error {
 		}
 	case contract.UNKNOWN:
 		return errors.New("unknown status")
+	default:
+		return errors.New("undefined status")
 	}
 	return nil
 }
