@@ -52,7 +52,8 @@ func (h *httpHandler) startHttpServer() {
 	router := http.NewServeMux()
 	router.HandleFunc("/ping", h.ping)
 	router.HandleFunc("/status", h.status)
-	router.HandleFunc("/strategy", h.strategy)
+	router.HandleFunc("/event", h.event)
+	router.HandleFunc("/show", h.show)
 	router.HandleFunc("/list", h.list)
 	h.server.Handler = router
 
@@ -82,22 +83,30 @@ func (h *httpHandler) status(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintf(w, "goroutine num: %d", runtime.NumGoroutine())
 }
 
+func (h *httpHandler) show(w http.ResponseWriter, r *http.Request) {
+	query := r.URL.Query()
+	uuid := strings.Trim(query.Get("uuid"), " ")
+	_, ok := h.runnerHandler.runnerByUuidMap.Load(uuid)
+	resp := map[string]interface{}{
+		"exist": ok,
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(resp)
+}
+
 func (h *httpHandler) list(w http.ResponseWriter, r *http.Request) {
 	var uuids []string
 	h.runnerHandler.runnerByUuidMap.Range(func(key, _ interface{}) bool {
 		uuids = append(uuids, key.(string))
 		return true
 	})
-	b, err := json.Marshal(uuids)
-	if err != nil {
-		w.WriteHeader(http.StatusBadRequest)
-		fmt.Fprint(w, err)
-		return
-	}
-	fmt.Fprint(w, string(b))
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(uuids)
 }
 
-func (h *httpHandler) strategy(w http.ResponseWriter, r *http.Request) {
+func (h *httpHandler) event(w http.ResponseWriter, r *http.Request) {
 	query := r.URL.Query()
 	action := strings.Trim(query.Get("action"), " ")
 	uuid := strings.Trim(query.Get("uuid"), " ")
