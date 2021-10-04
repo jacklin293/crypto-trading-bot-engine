@@ -10,8 +10,8 @@ import (
 
 type StopLoss struct {
 	Trigger                     trigger.Trigger `json:"trigger,omitempty"`
-	BaselineReadjustmentEnabled bool            `json:"baseline_readjustment_enabled,omitempty"`
-	LossTolerancePercent        float64         `json:"loss_tolerance_percent,omitempty"`
+	BaselineReadjustmentEnabled bool            `json:"baseline_readjustment_enabled"` // NOTE DO NOT 'omitempty' as you would be ignored when 'ParamsUpdated' tries to write into to DB
+	LossTolerancePercent        float64         `json:"loss_tolerance_percent"`        // NOTE DO NOT 'omitempty' as you would be ignored when 'ParamsUpdated' tries to write into to DB
 }
 
 func NewStopLoss(entryType string, data map[string]interface{}) (*StopLoss, error) {
@@ -54,8 +54,8 @@ func NewStopLoss(entryType string, data map[string]interface{}) (*StopLoss, erro
 		if !ok {
 			return &o, errors.New("'loss_tolerance_percent' is missing")
 		}
-		if p <= 0 {
-			return &o, errors.New("'loss_tolerance_percent' must be greater than 0")
+		if p < 0 {
+			return &o, errors.New("'loss_tolerance_percent' must be greater than or equal to 0")
 		}
 		o.LossTolerancePercent = p
 

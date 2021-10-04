@@ -340,9 +340,9 @@ func (ch *contractHook) ParamsUpdated(c *contract.Contract) (bool, error) {
 // NOTE When stop-loss triggered, it reset breakout peak, and trigger `ParamsUpdated` at the end, which doesn't write
 //      `breakout peak` into DB
 // NOTE Because of cooldown period, the real breakout peak might not be the same as breakout peak in memory
-//      , as checkPrice is still running and update the value, but it's fine
+//      , as checkPrice is still running and update the value, but it's fine, not a big deal
 func (ch *contractHook) BreakoutPeakUpdated(c *contract.Contract) {
-	// FIXME for debug
+	// NOTE for debug
 	text := fmt.Sprintf("breakout peak {price: %s, time: %s}", c.BreakoutPeak.Price, c.BreakoutPeak.Time.Format("2006-01-02 15:04:05"))
 	ch.logger.Printf("[Debug] sid: %s uid: %s sym: %s text: '%s'", ch.contractStrategy.Uuid, ch.contractStrategy.UserUuid, ch.contractStrategy.Symbol, text)
 
@@ -421,7 +421,7 @@ func (ch *contractHook) closeOpenPosition(reportIfFailed bool) (map[string]inter
 	if count == 0 {
 		text := fmt.Sprint("[Warn] Not sure whether the position has been closed. please check and reset your position and order")
 		ch.notify(text)
-		return map[string]interface{}{}, errors.New("closeOpenPosition - no position can be found")
+		return map[string]interface{}{}, errors.New("closeOpenPosition - no position was found")
 	}
 
 	// Notification

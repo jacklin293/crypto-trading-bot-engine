@@ -33,7 +33,7 @@ type WsExchanger interface {
 
 func NewExchange(name string, data map[string]interface{}) (ex Exchanger, err error) {
 	switch name {
-	case "ftx":
+	case "FTX":
 		ex = rest.NewFtxRest()
 		err = ex.NewClient(data)
 	default:
@@ -44,7 +44,7 @@ func NewExchange(name string, data map[string]interface{}) (ex Exchanger, err er
 
 func NewWsExchange(name string) (ex WsExchanger, err error) {
 	switch name {
-	case "ftx":
+	case "FTX":
 		ex = ws.NewFtxWs()
 	default:
 		err = fmt.Errorf("exchange '%s' no supported", name)

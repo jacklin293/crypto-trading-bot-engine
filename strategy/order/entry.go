@@ -11,8 +11,8 @@ import (
 type Entry struct {
 	Trigger               trigger.Trigger `json:"trigger,omitempty"`
 	BaselineTrigger       trigger.Trigger `json:"baseline_trigger,omitempty"`
-	BaselineOffsetPercent float64         `json:"baseline_offset_percent,omitempty"`
-	FlipOperatorEnabled   bool            `json:"flip_operator_enabled,omitempty"`
+	BaselineOffsetPercent float64         `json:"baseline_offset_percent"` // NOTE DO NOT 'omitempty' as you would be ignored when 'ParamsUpdated' tries to write into to DB
+	FlipOperatorEnabled   bool            `json:"flip_operator_enabled"`   // NOTE DO NOT 'omitempty' as you would be ignored when 'ParamsUpdated' tries to write into to DB
 }
 
 func NewEntry(side Side, entryType string, data map[string]interface{}) (*Entry, error) {
