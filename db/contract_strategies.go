@@ -21,6 +21,7 @@ type ContractStrategy struct {
 	PositionStatus        int64  // 0: closed  1: opened  2: unknown
 	Exchange              string // e.g. FTX
 	ExchangeOrdersDetails datatypes.JSONMap
+	Comment               string
 	LastPositionAt        time.Time
 	CreatedAt             time.Time
 	UpdatedAt             time.Time

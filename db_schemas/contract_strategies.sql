@@ -34,6 +34,7 @@ CREATE TABLE `contract_strategies` (
   `position_status` tinyint(4) unsigned NOT NULL DEFAULT 0 COMMENT ' 0: closed 1: opened 2: unknown',
   `exchange` varchar(20) NOT NULL COMMENT 'Exchange name e.g. FTX',
   `exchange_orders_details` longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_bin NOT NULL DEFAULT '\'{}\'' COMMENT 'Bespoke orders details by exchange' CHECK (json_valid(`exchange_orders_details`)),
+  `comment` varchar(100) NOT NULL COMMENT 'Comment',
   `last_position_at` datetime DEFAULT NULL COMMENT 'Last position created time',
   `created_at` datetime NOT NULL DEFAULT current_timestamp() COMMENT 'Create time',
   `updated_at` datetime NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp() COMMENT 'Update time',
@@ -54,4 +55,4 @@ CREATE TABLE `contract_strategies` (
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2021-10-05 21:25:40
+-- Dump completed on 2021-10-05 23:13:12
