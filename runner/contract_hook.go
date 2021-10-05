@@ -180,7 +180,7 @@ func (ch *contractHook) EntryTriggered(c *contract.Contract, t time.Time, p deci
 func (ch *contractHook) StopLossTriggerCreated(c *contract.Contract) (bool, error) {
 	var text string
 
-	// entry_type 'limit' and 'baseline' both are using Limit Trigger, time doesn't matter
+	// entry_type 'limit' and 'trendline' both are using Limit Trigger, time doesn't matter
 	p := c.StopLossOrder.(*order.StopLoss).Trigger.GetPrice(time.Now())
 	size, err := decimal.NewFromString(ch.contractStrategy.ExchangeOrdersDetails["entry_order"].(map[string]interface{})["size"].(string))
 	if err != nil {
@@ -276,19 +276,19 @@ func (ch *contractHook) StopLossTriggered(c *contract.Contract) (bool, error) {
 	return false, nil
 }
 
-func (ch *contractHook) EntryBaselineTriggerUpdated(c *contract.Contract) {
-	text := fmt.Sprintf("[Info] '%s %s' entry baseline has been updated", order.TranslateSideByInt(ch.contractStrategy.Side), ch.contractStrategy.Symbol)
+func (ch *contractHook) EntryTrendlineTriggerUpdated(c *contract.Contract) {
+	text := fmt.Sprintf("[Info] '%s %s' entry trendline has been updated", order.TranslateSideByInt(ch.contractStrategy.Side), ch.contractStrategy.Symbol)
 	ch.notify(text)
 
-	// Send new baseline
-	t := c.EntryOrder.(*order.Entry).BaselineTrigger
+	// Send new trendline
+	t := c.EntryOrder.(*order.Entry).TrendlineTrigger
 	// trigger shouldn't be 'nil', but just in case that it won't blow up
 	if t != nil {
 		p1 := t.(*trigger.Line).Price1
 		t1 := t.(*trigger.Line).Time1
 		p2 := t.(*trigger.Line).Price2
 		t2 := t.(*trigger.Line).Time2
-		text = fmt.Sprintf("[Info] New entry baseline:\nPoint 1: $%s, '%s'\nPoint 2: $%s, '%s'", p1, t1.Format("2006-01-02 15:04"), p2, t2.Format("2006-01-02 15:04"))
+		text = fmt.Sprintf("[Info] New entry trend line:\nPoint 1: $%s, '%s'\nPoint 2: $%s, '%s'", p1, t1.Format("2006-01-02 15:04"), p2, t2.Format("2006-01-02 15:04"))
 		ch.notify(text)
 	}
 }

@@ -34,28 +34,28 @@ func TestNewStopLoss(t *testing.T) {
 			expectedError: true,
 		},
 		{
-			title:     "new baseline trigger",
-			entryType: ENTRY_BASELINE,
+			title:     "new trendline trigger",
+			entryType: ENTRY_TRENDLINE,
 			data: map[string]interface{}{
-				"loss_tolerance_percent":        0.005,
-				"baseline_readjustment_enabled": true,
+				"loss_tolerance_percent":         0.005,
+				"trendline_readjustment_enabled": true,
 			},
 			expectedError: false,
 		},
 		{
-			title:     "new baseline trigger - 'loss_tolerance_percent' is missing",
-			entryType: ENTRY_BASELINE,
+			title:     "new trendline trigger - 'loss_tolerance_percent' is missing",
+			entryType: ENTRY_TRENDLINE,
 			data: map[string]interface{}{
-				"baseline_readjustment_enabled": true,
+				"trendline_readjustment_enabled": true,
 			},
 			expectedError: true,
 		},
 		{
-			title:     "new baseline trigger - 'loss_tolerance_percent' less than 0",
-			entryType: ENTRY_BASELINE,
+			title:     "new trendline trigger - 'loss_tolerance_percent' less than 0",
+			entryType: ENTRY_TRENDLINE,
 			data: map[string]interface{}{
-				"loss_tolerance_percent":        -0.005,
-				"baseline_readjustment_enabled": true,
+				"loss_tolerance_percent":         -0.005,
+				"trendline_readjustment_enabled": true,
 			},
 			expectedError: true,
 		},
@@ -108,14 +108,14 @@ func TestStopLossUpdateTriggerByLossPercent(t *testing.T) {
 		title           string
 		LossPercent     float64
 		side            Side
-		baselinePrice   decimal.Decimal
+		trendlinePrice  decimal.Decimal
 		expectedTrigger trigger.Trigger
 	}{
 		{
-			title:         "test long - positive percent",
-			LossPercent:   0.01,
-			side:          LONG,
-			baselinePrice: decimal.NewFromFloat(100.1),
+			title:          "test long - positive percent",
+			LossPercent:    0.01,
+			side:           LONG,
+			trendlinePrice: decimal.NewFromFloat(100.1),
 			expectedTrigger: &trigger.Limit{
 				TriggerType: "limit",
 				Operator:    "<=",
@@ -123,10 +123,10 @@ func TestStopLossUpdateTriggerByLossPercent(t *testing.T) {
 			},
 		},
 		{
-			title:         "test short - positive percent",
-			LossPercent:   0.01,
-			side:          SHORT,
-			baselinePrice: decimal.NewFromFloat(100.1),
+			title:          "test short - positive percent",
+			LossPercent:    0.01,
+			side:           SHORT,
+			trendlinePrice: decimal.NewFromFloat(100.1),
 			expectedTrigger: &trigger.Limit{
 				TriggerType: "limit",
 				Operator:    ">=",
@@ -137,7 +137,7 @@ func TestStopLossUpdateTriggerByLossPercent(t *testing.T) {
 
 	for _, tc := range testcases {
 		o := &StopLoss{LossTolerancePercent: tc.LossPercent}
-		o.UpdateTriggerByLossPercent(tc.side, tc.baselinePrice)
+		o.UpdateTriggerByLossPercent(tc.side, tc.trendlinePrice)
 
 		if !reflect.DeepEqual(tc.expectedTrigger, o.GetTrigger()) {
 			t.Errorf("TestStopLossUpdateTriggerByLossPercent case '%s' - expect '%v', but got '%v'", tc.title, tc.expectedTrigger, o.GetTrigger())

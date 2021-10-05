@@ -61,9 +61,9 @@ http://localhost:8080/
 
 ```
 {
-  "entry_type": "baseline",
+  "entry_type": "trendline",
   "entry_order": {
-    "baseline_trigger": {
+    "trendline_trigger": {
       "trigger_type": "line",
       "operator": ">=",
       "time_1": "2021-09-07T00:00:00Z",
@@ -71,11 +71,11 @@ http://localhost:8080/
       "time_2": "2021-09-15T04:00:00Z",
       "price_2": "47221.54"
     },
-    "baseline_offset_percent": 0.005
+    "trendline_offset_percent": 0.005
   },
   "stop_loss_order": {
     "loss_tolerance_percent": 0.005,
-    "baseline_readjustment_enabled": true
+    "trendline_readjustment_enabled": true
   },
   "take_profit_order": {
     "trigger": {

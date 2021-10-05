@@ -9,9 +9,9 @@ import (
 )
 
 type StopLoss struct {
-	Trigger                     trigger.Trigger `json:"trigger,omitempty"`
-	BaselineReadjustmentEnabled bool            `json:"baseline_readjustment_enabled"` // NOTE DO NOT 'omitempty' as you would be ignored when 'ParamsUpdated' tries to write into to DB
-	LossTolerancePercent        float64         `json:"loss_tolerance_percent"`        // NOTE DO NOT 'omitempty' as you would be ignored when 'ParamsUpdated' tries to write into to DB
+	Trigger                      trigger.Trigger `json:"trigger,omitempty"`
+	TrendlineReadjustmentEnabled bool            `json:"trendline_readjustment_enabled"` // NOTE DO NOT 'omitempty' as you would be ignored when 'ParamsUpdated' tries to write into to DB
+	LossTolerancePercent         float64         `json:"loss_tolerance_percent"`         // NOTE DO NOT 'omitempty' as you would be ignored when 'ParamsUpdated' tries to write into to DB
 }
 
 func NewStopLoss(entryType string, data map[string]interface{}) (*StopLoss, error) {
@@ -30,15 +30,15 @@ func NewStopLoss(entryType string, data map[string]interface{}) (*StopLoss, erro
 			return &o, err
 		}
 		o.Trigger = tt
-	case ENTRY_BASELINE:
+	case ENTRY_TRENDLINE:
 		// NOTE Context:
 		//      Originally, for contract status 'CLOSED', only entry_type 'limit' needs to new 'Trigger'
-		//      , as the 'Trigger' of 'baseline' will be set in runtime during 'contract.CheckPrice'
+		//      , as the 'Trigger' of 'trendline' will be set in runtime during 'contract.CheckPrice'
 		//      When the runner restarts, it needs to get set with the 'Trigger' data from DB.
 		//      In order to reduce the complexity, there is no check for distinguishing between 'OPENED' or 'CLOSED'
 		//      and an extra work to refill 'Trigger' when contract status is 'OPENED'.
 		//      'Trigger' will always be set anyway as long as it exists
-		//      , it won't cause any issues for 'baseline' as the 'Trigger' will be overridden by 'contract.CheckPrice.setStopLossTrigger' when Entry triggered
+		//      , it won't cause any issues for 'trendline' as the 'Trigger' will be overridden by 'contract.CheckPrice.setStopLossTrigger' when Entry triggered
 		t, ok := data["trigger"].(map[string]interface{})
 		if ok {
 			var tt trigger.Trigger
@@ -60,9 +60,9 @@ func NewStopLoss(entryType string, data map[string]interface{}) (*StopLoss, erro
 		o.LossTolerancePercent = p
 
 		var enabled bool
-		enabled, ok = data["baseline_readjustment_enabled"].(bool)
+		enabled, ok = data["trendline_readjustment_enabled"].(bool)
 		if ok {
-			o.BaselineReadjustmentEnabled = enabled
+			o.TrendlineReadjustmentEnabled = enabled
 		}
 	}
 
@@ -86,21 +86,21 @@ func (o *StopLoss) IsTriggered(t time.Time, p decimal.Decimal) bool {
 	return trigger.IsTriggeredBySingleTrigger(o.Trigger, t, p)
 }
 
-func (o *StopLoss) UpdateTriggerByLossPercent(side Side, baselinePrice decimal.Decimal) {
+func (o *StopLoss) UpdateTriggerByLossPercent(side Side, trendlinePrice decimal.Decimal) {
 	var t trigger.Trigger
 	switch side {
 	case LONG:
-		// TODO new Limit trigger
+		// new Limit trigger
 		t = &trigger.Limit{
 			TriggerType: "limit",
 			Operator:    "<=",
-			Price:       baselinePrice.Mul(decimal.NewFromFloat(1 - o.LossTolerancePercent)),
+			Price:       trendlinePrice.Mul(decimal.NewFromFloat(1 - o.LossTolerancePercent)),
 		}
 	case SHORT:
 		t = &trigger.Limit{
 			TriggerType: "limit",
 			Operator:    ">=",
-			Price:       baselinePrice.Mul(decimal.NewFromFloat(1 + o.LossTolerancePercent)),
+			Price:       trendlinePrice.Mul(decimal.NewFromFloat(1 + o.LossTolerancePercent)),
 		}
 	}
 	o.Trigger = t

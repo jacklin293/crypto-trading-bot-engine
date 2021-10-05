@@ -35,10 +35,10 @@ func TestNewEntry(t *testing.T) {
 			expectedError: true,
 		},
 		{
-			title:     "new baseline trigger",
-			entryType: ENTRY_BASELINE,
+			title:     "new trendline trigger",
+			entryType: ENTRY_TRENDLINE,
 			data: map[string]interface{}{
-				"baseline_trigger": map[string]interface{}{
+				"trendline_trigger": map[string]interface{}{
 					"trigger_type": "line",
 					"operator":     ">=",
 					"time_1":       "2021-08-18T18:00:00Z",
@@ -46,23 +46,23 @@ func TestNewEntry(t *testing.T) {
 					"time_2":       "2021-08-19T01:45:00Z",
 					"price_2":      "45234.56",
 				},
-				"baseline_offset_percent": 0.005,
+				"trendline_offset_percent": 0.005,
 			},
 			expectedError: false,
 		},
 		{
-			title:     "new baseline trigger - 'baseline_trigger' is missing",
-			entryType: ENTRY_BASELINE,
+			title:     "new trendline trigger - 'trendline_trigger' is missing",
+			entryType: ENTRY_TRENDLINE,
 			data: map[string]interface{}{
-				"baseline_offset_percent": 0.005,
+				"trendline_offset_percent": 0.005,
 			},
 			expectedError: true,
 		},
 		{
-			title:     "new baseline trigger - 'baseline_offset_percent' is missing",
-			entryType: ENTRY_BASELINE,
+			title:     "new trendline trigger - 'trendline_offset_percent' is missing",
+			entryType: ENTRY_TRENDLINE,
 			data: map[string]interface{}{
-				"baseline_trigger": map[string]interface{}{
+				"trendline_trigger": map[string]interface{}{
 					"trigger_type": "line",
 					"operator":     ">=",
 					"time_1":       "2021-08-18T18:00:00Z",
@@ -112,19 +112,19 @@ func TestEntryIsTriggered(t *testing.T) {
 	}
 }
 
-func TestEntryUpdateBaselineTrigger(t *testing.T) {
+func TestEntryUpdateTrendlineTrigger(t *testing.T) {
 	testcases := []struct {
-		title                   string
-		side                    Side
-		baselineTrigger         trigger.Trigger
-		price2                  decimal.Decimal
-		time2                   time.Time
-		expectedBaselineTrigger trigger.Trigger
+		title                    string
+		side                     Side
+		trendlineTrigger         trigger.Trigger
+		price2                   decimal.Decimal
+		time2                    time.Time
+		expectedTrendlineTrigger trigger.Trigger
 	}{
 		{
 			title: "long - price1 > price2",
 			side:  LONG,
-			baselineTrigger: &trigger.Line{
+			trendlineTrigger: &trigger.Line{
 				Operator: ">=",
 				Time1:    time.Date(2021, 8, 29, 1, 15, 0, 0, time.UTC),
 				Price1:   decimal.NewFromFloat(49632.27),
@@ -133,7 +133,7 @@ func TestEntryUpdateBaselineTrigger(t *testing.T) {
 			},
 			price2: decimal.NewFromFloat(48900.87),
 			time2:  time.Date(2021, 9, 1, 9, 30, 0, 0, time.UTC),
-			expectedBaselineTrigger: &trigger.Line{
+			expectedTrendlineTrigger: &trigger.Line{
 				Operator: ">=",
 				Time1:    time.Date(2021, 8, 29, 1, 15, 0, 0, time.UTC),
 				Price1:   decimal.NewFromFloat(49632.27),
@@ -144,7 +144,7 @@ func TestEntryUpdateBaselineTrigger(t *testing.T) {
 		{
 			title: "long - price1 < price2",
 			side:  LONG,
-			baselineTrigger: &trigger.Line{
+			trendlineTrigger: &trigger.Line{
 				Operator: ">=",
 				Time1:    time.Date(2021, 8, 29, 1, 15, 0, 0, time.UTC),
 				Price1:   decimal.NewFromFloat(49632.27),
@@ -153,7 +153,7 @@ func TestEntryUpdateBaselineTrigger(t *testing.T) {
 			},
 			price2: decimal.NewFromFloat(49700.26),
 			time2:  time.Date(2021, 9, 1, 9, 30, 0, 0, time.UTC),
-			expectedBaselineTrigger: &trigger.Line{
+			expectedTrendlineTrigger: &trigger.Line{
 				Operator: ">=",
 				Time1:    time.Date(2021, 8, 29, 1, 15, 0, 0, time.UTC),
 				Price1:   decimal.NewFromFloat(49632.27),
@@ -164,7 +164,7 @@ func TestEntryUpdateBaselineTrigger(t *testing.T) {
 		{
 			title: "short - price1 < price2",
 			side:  SHORT,
-			baselineTrigger: &trigger.Line{
+			trendlineTrigger: &trigger.Line{
 				Operator: "<=",
 				Time1:    time.Date(2021, 8, 27, 0, 15, 0, 0, time.UTC),
 				Price1:   decimal.NewFromFloat(46348.44),
@@ -173,7 +173,7 @@ func TestEntryUpdateBaselineTrigger(t *testing.T) {
 			},
 			price2: decimal.NewFromFloat(46500.37),
 			time2:  time.Date(2021, 9, 1, 9, 30, 0, 0, time.UTC),
-			expectedBaselineTrigger: &trigger.Line{
+			expectedTrendlineTrigger: &trigger.Line{
 				Operator: "<=",
 				Time1:    time.Date(2021, 8, 27, 0, 15, 0, 0, time.UTC),
 				Price1:   decimal.NewFromFloat(46348.44),
@@ -184,7 +184,7 @@ func TestEntryUpdateBaselineTrigger(t *testing.T) {
 		{
 			title: "short - price1 > price2",
 			side:  SHORT,
-			baselineTrigger: &trigger.Line{
+			trendlineTrigger: &trigger.Line{
 				Operator: "<=",
 				Time1:    time.Date(2021, 8, 27, 0, 15, 0, 0, time.UTC),
 				Price1:   decimal.NewFromFloat(46348.44),
@@ -193,7 +193,7 @@ func TestEntryUpdateBaselineTrigger(t *testing.T) {
 			},
 			price2: decimal.NewFromFloat(46100.37),
 			time2:  time.Date(2021, 9, 1, 9, 30, 0, 0, time.UTC),
-			expectedBaselineTrigger: &trigger.Line{
+			expectedTrendlineTrigger: &trigger.Line{
 				Operator: "<=",
 				Time1:    time.Date(2021, 8, 27, 0, 15, 0, 0, time.UTC),
 				Price1:   decimal.NewFromFloat(46348.44),
@@ -205,17 +205,17 @@ func TestEntryUpdateBaselineTrigger(t *testing.T) {
 
 	for _, tc := range testcases {
 		o := Entry{
-			BaselineTrigger: tc.baselineTrigger,
+			TrendlineTrigger: tc.trendlineTrigger,
 		}
-		o.UpdateBaselineTrigger(tc.side, tc.price2, tc.time2)
+		o.UpdateTrendlineTrigger(tc.side, tc.price2, tc.time2)
 
-		if !reflect.DeepEqual(tc.expectedBaselineTrigger, o.BaselineTrigger) {
-			t.Errorf("TestEntryUpdateBaselineTrigger case '%s' - expect '%v', but got '%v'", tc.title, tc.expectedBaselineTrigger, o.BaselineTrigger)
+		if !reflect.DeepEqual(tc.expectedTrendlineTrigger, o.TrendlineTrigger) {
+			t.Errorf("TestEntryUpdateTrendlineTrigger case '%s' - expect '%v', but got '%v'", tc.title, tc.expectedTrendlineTrigger, o.TrendlineTrigger)
 		}
 	}
 }
 
-func TestEntryUpdateTriggerByBaselineAndOffset(t *testing.T) {
+func TestEntryUpdateTriggerByTrendlineAndOffset(t *testing.T) {
 	testcases := []struct {
 		title           string
 		side            Side
@@ -274,40 +274,40 @@ func TestEntryUpdateTriggerByBaselineAndOffset(t *testing.T) {
 
 	for _, tc := range testcases {
 		o := Entry{
-			BaselineTrigger: &trigger.Line{
+			TrendlineTrigger: &trigger.Line{
 				Operator: "<=",
 				Time1:    time.Date(2021, 8, 27, 0, 15, 0, 0, time.UTC),
 				Price1:   decimal.NewFromFloat(46348.44),
 				Time2:    time.Date(2021, 8, 29, 4, 00, 0, 0, time.UTC),
 				Price2:   decimal.NewFromFloat(47762.54),
 			},
-			BaselineOffsetPercent: tc.percent,
+			TrendlineOffsetPercent: tc.percent,
 		}
-		o.UpdateTriggerByBaselineAndOffset(tc.side)
+		o.UpdateTriggerByTrendlineAndOffset(tc.side)
 
 		if !reflect.DeepEqual(tc.expectedTrigger, o.Trigger) {
-			t.Errorf("TestEntryUpdateTriggerByBaselineAndOffset case '%s' - expect '%v', but got '%v'", tc.title, tc.expectedTrigger, o.Trigger)
+			t.Errorf("TestEntryUpdateTriggerByTrendlineAndOffset case '%s' - expect '%v', but got '%v'", tc.title, tc.expectedTrigger, o.Trigger)
 		}
 	}
 }
 
 func TestEntryFlipOperator(t *testing.T) {
 	testcases := []struct {
-		title                   string
-		side                    Side
-		trigger                 trigger.Trigger
-		baselineTrigger         trigger.Trigger
-		expectedTrigger         trigger.Trigger
-		expectedBaselineTrigger trigger.Trigger
+		title                    string
+		side                     Side
+		trigger                  trigger.Trigger
+		trendlineTrigger         trigger.Trigger
+		expectedTrigger          trigger.Trigger
+		expectedTrendlineTrigger trigger.Trigger
 	}{
 		{
-			title: "long - trigger & baseline trigger",
+			title: "long - trigger & trendline trigger",
 			side:  LONG,
 			trigger: &trigger.Limit{
 				Operator: "<=",
 				Price:    decimal.NewFromInt(100),
 			},
-			baselineTrigger: &trigger.Limit{
+			trendlineTrigger: &trigger.Limit{
 				Operator: "<=",
 				Price:    decimal.NewFromInt(100),
 			},
@@ -315,7 +315,7 @@ func TestEntryFlipOperator(t *testing.T) {
 				Operator: ">=",
 				Price:    decimal.NewFromInt(100),
 			},
-			expectedBaselineTrigger: &trigger.Limit{
+			expectedTrendlineTrigger: &trigger.Limit{
 				Operator: ">=",
 				Price:    decimal.NewFromInt(100),
 			},
@@ -333,7 +333,7 @@ func TestEntryFlipOperator(t *testing.T) {
 			},
 		},
 		{
-			title: "short - trigger & baseline trigger",
+			title: "short - trigger & trendline trigger",
 			side:  SHORT,
 			trigger: &trigger.Line{
 				Operator: ">=",
@@ -342,7 +342,7 @@ func TestEntryFlipOperator(t *testing.T) {
 				Time2:    time.Date(2021, 8, 29, 4, 00, 0, 0, time.UTC),
 				Price2:   decimal.NewFromFloat(47762.54),
 			},
-			baselineTrigger: &trigger.Line{
+			trendlineTrigger: &trigger.Line{
 				Operator: ">=",
 				Time1:    time.Date(2021, 8, 27, 0, 15, 0, 0, time.UTC),
 				Price1:   decimal.NewFromFloat(46348.44),
@@ -356,7 +356,7 @@ func TestEntryFlipOperator(t *testing.T) {
 				Time2:    time.Date(2021, 8, 29, 4, 00, 0, 0, time.UTC),
 				Price2:   decimal.NewFromFloat(47762.54),
 			},
-			expectedBaselineTrigger: &trigger.Line{
+			expectedTrendlineTrigger: &trigger.Line{
 				Operator: "<=",
 				Time1:    time.Date(2021, 8, 27, 0, 15, 0, 0, time.UTC),
 				Price1:   decimal.NewFromFloat(46348.44),
@@ -386,16 +386,16 @@ func TestEntryFlipOperator(t *testing.T) {
 
 	for _, tc := range testcases {
 		entryOrder := &Entry{
-			Trigger:         tc.trigger,
-			BaselineTrigger: tc.baselineTrigger,
+			Trigger:          tc.trigger,
+			TrendlineTrigger: tc.trendlineTrigger,
 		}
 		entryOrder.FlipOperator(tc.side)
 
 		if !reflect.DeepEqual(tc.expectedTrigger, entryOrder.Trigger) {
 			t.Errorf("TestEntryFlipOperator case '%s' - expect '%v', but got '%v'", tc.title, tc.expectedTrigger, entryOrder.Trigger)
 		}
-		if !reflect.DeepEqual(tc.expectedBaselineTrigger, entryOrder.BaselineTrigger) {
-			t.Errorf("TestEntryFlipOperator case '%s' - expect '%v', but got '%v'", tc.title, tc.expectedBaselineTrigger, entryOrder.BaselineTrigger)
+		if !reflect.DeepEqual(tc.expectedTrendlineTrigger, entryOrder.TrendlineTrigger) {
+			t.Errorf("TestEntryFlipOperator case '%s' - expect '%v', but got '%v'", tc.title, tc.expectedTrendlineTrigger, entryOrder.TrendlineTrigger)
 		}
 	}
 }

@@ -32,7 +32,7 @@ type Hooker interface {
 
 	// StopLossOrder
 	StopLossTriggered(*Contract) (bool, error)
-	EntryBaselineTriggerUpdated(*Contract)
+	EntryTrendlineTriggerUpdated(*Contract)
 
 	// TakeProfitOrder
 	TakeProfitTriggered(*Contract) error
@@ -55,7 +55,7 @@ type Contract struct {
 	// The status of the contract
 	Status Status
 
-	// entry_type 'baseline' only
+	// entry_type 'trendline' only
 	// In order to avoid false breakouit next time, record the highest price and time during the life cycle of each attempt
 	BreakoutPeak struct {
 		Time  time.Time
@@ -85,7 +85,7 @@ func NewContract(side order.Side, data map[string]interface{}) (c *Contract, err
 		err = errors.New("'entry_type' is missing")
 		return
 	}
-	if entryType != order.ENTRY_LIMIT && entryType != order.ENTRY_BASELINE {
+	if entryType != order.ENTRY_LIMIT && entryType != order.ENTRY_TRENDLINE {
 		err = fmt.Errorf("entry_type '%s' not supported", entryType)
 		return
 	}
@@ -191,15 +191,15 @@ func (c *Contract) CheckPrice(mark Mark) (halted bool, err error) {
 					if halted, err = c.hook.StopLossTriggerCreated(c); err != nil || halted {
 						return
 					}
-				case order.ENTRY_BASELINE:
-					// For entry_type 'baseline', stop-loss order will depend on entry price
+				case order.ENTRY_TRENDLINE:
+					// For entry_type 'trendline', stop-loss order will depend on entry price
 					c.setStopLossTrigger(entryPrice)
 					if halted, err = c.hook.StopLossTriggerCreated(c); err != nil || halted {
 						return
 					}
 
 					// Record breakout peak
-					if c.StopLossOrder.(*order.StopLoss).BaselineReadjustmentEnabled {
+					if c.StopLossOrder.(*order.StopLoss).TrendlineReadjustmentEnabled {
 						// Set breakout peak because price is default '0', it casues a bug in Short position
 						c.setBreakoutPeak(mark.Time, mark.Price)
 					}
@@ -225,7 +225,7 @@ func (c *Contract) CheckPrice(mark Mark) (halted bool, err error) {
 			return
 		}
 	case OPENED:
-		if c.EntryType == order.ENTRY_BASELINE && c.StopLossOrder != nil && c.StopLossOrder.(*order.StopLoss).BaselineReadjustmentEnabled {
+		if c.EntryType == order.ENTRY_TRENDLINE && c.StopLossOrder != nil && c.StopLossOrder.(*order.StopLoss).TrendlineReadjustmentEnabled {
 			if c.recordBreakoutPeak(mark.Time, mark.Price) {
 				// If the breakout has been updated, trigger the function after cooldown
 				if mark.Time.After(c.BreakoutPeak.lastTriggeredTime.Add(time.Second * time.Duration(BREAKOUT_PEAK_TRIGGERED_INTERVAL))) {
@@ -243,18 +243,18 @@ func (c *Contract) CheckPrice(mark Mark) (halted bool, err error) {
 			}
 			c.Status = CLOSED
 
-			if c.EntryType == order.ENTRY_BASELINE {
+			if c.EntryType == order.ENTRY_TRENDLINE {
 				// Reset stop-loss trigger so when the mark price goes above entry won't be affected by previous stop-loss trigger
 				c.StopLossOrder.(*order.StopLoss).UnsetTrigger()
 
-				if c.StopLossOrder.(*order.StopLoss).BaselineReadjustmentEnabled {
-					c.readjustEntryBaseline()
-					c.hook.EntryBaselineTriggerUpdated(c)
+				if c.StopLossOrder.(*order.StopLoss).TrendlineReadjustmentEnabled {
+					c.readjustEntryTrendline()
+					c.hook.EntryTrendlineTriggerUpdated(c)
 					c.resetBreakoutPeak()
 				}
 			}
 
-			// For readjustEntryBaseline and stop-loss UnsetTrigger
+			// For readjustEntryTrendline and stop-loss UnsetTrigger
 			if halted, err = c.hook.ParamsUpdated(c); err != nil || halted {
 				return
 			}
@@ -277,29 +277,29 @@ func (c *Contract) CheckPrice(mark Mark) (halted bool, err error) {
 	return
 }
 
-// entry_type 'baseline' only
-// Set baseline price as cost price
+// entry_type 'trendline' only
+// Set trendline price as cost price
 func (c *Contract) setStopLossTrigger(p decimal.Decimal) {
 	c.StopLossOrder.(*order.StopLoss).UpdateTriggerByLossPercent(c.Side, p)
 }
 
-// entry_type 'baseline' only
-// Update baseline trigger and entry order for preventing false breakout
-func (c *Contract) readjustEntryBaseline() {
-	// Update baseline trigger first
-	c.EntryOrder.(*order.Entry).UpdateBaselineTrigger(c.Side, c.BreakoutPeak.Price, c.BreakoutPeak.Time)
+// entry_type 'trendline' only
+// Update trendline trigger and entry order for preventing false breakout
+func (c *Contract) readjustEntryTrendline() {
+	// Update trendline trigger first
+	c.EntryOrder.(*order.Entry).UpdateTrendlineTrigger(c.Side, c.BreakoutPeak.Price, c.BreakoutPeak.Time)
 
-	// Update trigger based on baseline trigger and offset
-	c.EntryOrder.(*order.Entry).UpdateTriggerByBaselineAndOffset(c.Side)
+	// Update trigger based on trendline trigger and offset
+	c.EntryOrder.(*order.Entry).UpdateTriggerByTrendlineAndOffset(c.Side)
 }
 
-// entry_type 'baseline' only
+// entry_type 'trendline' only
 func (c *Contract) setBreakoutPeak(t time.Time, p decimal.Decimal) {
 	c.BreakoutPeak.Time = t
 	c.BreakoutPeak.Price = p
 }
 
-// entry_type 'baseline' only
+// entry_type 'trendline' only
 func (c *Contract) recordBreakoutPeak(t time.Time, p decimal.Decimal) bool {
 	updated := false
 	switch c.Side {
@@ -319,7 +319,7 @@ func (c *Contract) recordBreakoutPeak(t time.Time, p decimal.Decimal) bool {
 	return updated
 }
 
-// entry_type 'baseline' only
+// entry_type 'trendline' only
 func (c *Contract) resetBreakoutPeak() {
 	c.BreakoutPeak.Time = time.Time{}
 	c.BreakoutPeak.Price = decimal.Decimal{}

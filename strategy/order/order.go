@@ -14,8 +14,8 @@ const (
 	SHORT Side = 0
 	LONG  Side = 1
 
-	ENTRY_LIMIT    = "limit"    // entry trigger is Limit trigger
-	ENTRY_BASELINE = "baseline" // entry trigger (Line trigger) and stop-loss trigger (Limit trigger) are based on baseline
+	ENTRY_LIMIT     = "limit"     // entry trigger is Limit trigger
+	ENTRY_TRENDLINE = "trendline" // entry trigger (Line trigger) and stop-loss trigger (Limit trigger) are based on trendline
 )
 
 type Order interface {

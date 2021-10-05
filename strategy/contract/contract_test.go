@@ -41,8 +41,8 @@ func (th *testHook) StopLossTriggered(c *Contract) (bool, error) {
 	return false, nil
 }
 
-func (th *testHook) EntryBaselineTriggerUpdated(c *Contract) {
-	th.funcNames = append(th.funcNames, "EntryBaselineTriggerUpdated")
+func (th *testHook) EntryTrendlineTriggerUpdated(c *Contract) {
+	th.funcNames = append(th.funcNames, "EntryTrendlineTriggerUpdated")
 }
 
 func (th *testHook) TakeProfitTriggered(c *Contract) error {
@@ -260,13 +260,13 @@ func TestLimitAllOrders(t *testing.T) {
 	}
 }
 
-// entry_type 'baseline'
+// entry_type 'trendline'
 /*
 LONG
 {
-  "entry_type": "baseline",
+  "entry_type": "trendline",
   "entry_order": {
-    "baseline_trigger": {
+    "trendline_trigger": {
       "trigger_type": "line",
       "operator": ">=",
       "time_1": "2021-08-17 11:45:00",
@@ -274,11 +274,11 @@ LONG
       "time_2": "2021-08-18 10:00:00",
       "price_2": 45560
     },
-    "baseline_offset_percent": 0.01
+    "trendline_offset_percent": 0.01
   },
   "stop_loss_order": {
     "loss_tolerance_percent": 0.01,
-    "baseline_readjustment_enabled": false
+    "trendline_readjustment_enabled": false
   },
   "take_profit_order": {
     "trigger": {
@@ -289,22 +289,22 @@ LONG
   }
 }
 
-EntryTriggered             baseline: 45144.12  &{>= 2021-08-17 11:45:00 +0000 UTC 47160 2021-08-18 10:00:00 +0000 UTC 45560}
+EntryTriggered             trendline: 45144.12  &{>= 2021-08-17 11:45:00 +0000 UTC 47160 2021-08-18 10:00:00 +0000 UTC 45560}
 EntryTriggered                entry: 45595.56  &{>= 2021-08-17 11:45:00 +0000 UTC 47631.6 2021-08-18 10:00:00 +0000 UTC 46015.6}
 EntryTriggered                  buy: 45727.76  '2021-08-18 15:47'
 StopLossTriggerCreated    stop-loss: 45270.48  <=
 ! StopLossTriggered            sell: 45189.23  '2021-08-18 19:18'  ($1000 => $988)
-EntryTriggered             baseline: 44590.41  &{>= 2021-08-17 11:45:00 +0000 UTC 47160 2021-08-18 10:00:00 +0000 UTC 45560}
+EntryTriggered             trendline: 44590.41  &{>= 2021-08-17 11:45:00 +0000 UTC 47160 2021-08-18 10:00:00 +0000 UTC 45560}
 EntryTriggered                entry: 45036.32  &{>= 2021-08-17 11:45:00 +0000 UTC 47631.6 2021-08-18 10:00:00 +0000 UTC 46015.6}
 EntryTriggered                  buy: 45073.46  '2021-08-18 23:29'
 StopLossTriggerCreated    stop-loss: 44622.73  <=
 ! StopLossTriggered            sell: 44600  '2021-08-19 00:15'  ($988 => $978)
-EntryTriggered             baseline: 44493.33  &{>= 2021-08-17 11:45:00 +0000 UTC 47160 2021-08-18 10:00:00 +0000 UTC 45560}
+EntryTriggered             trendline: 44493.33  &{>= 2021-08-17 11:45:00 +0000 UTC 47160 2021-08-18 10:00:00 +0000 UTC 45560}
 EntryTriggered                entry: 44938.27  &{>= 2021-08-17 11:45:00 +0000 UTC 47631.6 2021-08-18 10:00:00 +0000 UTC 46015.6}
 EntryTriggered                  buy: 44976.25  '2021-08-19 00:50'
 StopLossTriggerCreated    stop-loss: 44526.49  <=
 ! StopLossTriggered            sell: 44496.45  '2021-08-19 03:06'  ($978 => $967)
-EntryTriggered             baseline: 44043.90  &{>= 2021-08-17 11:45:00 +0000 UTC 47160 2021-08-18 10:00:00 +0000 UTC 45560}
+EntryTriggered             trendline: 44043.90  &{>= 2021-08-17 11:45:00 +0000 UTC 47160 2021-08-18 10:00:00 +0000 UTC 45560}
 EntryTriggered                entry: 44484.33  &{>= 2021-08-17 11:45:00 +0000 UTC 47631.6 2021-08-18 10:00:00 +0000 UTC 46015.6}
 EntryTriggered                  buy: 44485.49  '2021-08-19 07:05'
 StopLossTriggerCreated    stop-loss: 44040.64  <=
@@ -313,9 +313,9 @@ StopLossTriggerCreated    stop-loss: 44040.64  <=
 
 SHORT
 {
-  "entry_type": "baseline",
+  "entry_type": "trendline",
   "entry_order": {
-    "baseline_trigger": {
+    "trendline_trigger": {
       "trigger_type": "line",
       "operator": "<=",
       "time_1": "2021-08-09 01:15:00",
@@ -323,11 +323,11 @@ SHORT
       "time_2": "2021-08-10 16:30:00",
       "price_2": 44589.46
     },
-    "baseline_offset_percent": 0.01
+    "trendline_offset_percent": 0.01
   },
   "stop_loss_order": {
     "loss_tolerance_percent": 0.01,
-    "baseline_readjustment_enabled": false
+    "trendline_readjustment_enabled": false
   },
   "take_profit_order": {
     "trigger": {
@@ -338,19 +338,19 @@ SHORT
   }
 }
 
-EntryTriggered             baseline: 46040.90  &{<= 2021-08-09 01:15:00 +0000 UTC 42779 2021-08-10 16:30:00 +0000 UTC 44589.46}
+EntryTriggered             trendline: 46040.90  &{<= 2021-08-09 01:15:00 +0000 UTC 42779 2021-08-10 16:30:00 +0000 UTC 44589.46}
 EntryTriggered                entry: 45580.49  &{<= 2021-08-09 01:15:00 +0000 UTC 42351.21 2021-08-10 16:30:00 +0000 UTC 44143.5654}
 EntryTriggered                  buy: 45550  '2021-08-11 23:58'
 StopLossTriggerCreated    stop-loss: 46005.50  >=
 ! StopLossTriggered            sell: 46052.25  '2021-08-12 01:32'  ($1000 => $1011)
-EntryTriggered             baseline: 46243.09  &{<= 2021-08-09 01:15:00 +0000 UTC 42779 2021-08-10 16:30:00 +0000 UTC 44589.46}
+EntryTriggered             trendline: 46243.09  &{<= 2021-08-09 01:15:00 +0000 UTC 42779 2021-08-10 16:30:00 +0000 UTC 44589.46}
 EntryTriggered                entry: 45780.66  &{<= 2021-08-09 01:15:00 +0000 UTC 42351.21 2021-08-10 16:30:00 +0000 UTC 44143.5654}
 EntryTriggered                  buy: 45777.12  '2021-08-12 04:21'
 StopLossTriggerCreated    stop-loss: 46234.89  >=
 ! TakeProfitTriggered          sell: 43957.73  '2021-08-12 14:57'  ($1011 => $971)
 
 */
-func TestBaselineAllOrders(t *testing.T) {
+func TestTrendlineAllOrders(t *testing.T) {
 	testcases := []struct {
 		title           string
 		side            order.Side
@@ -367,7 +367,7 @@ func TestBaselineAllOrders(t *testing.T) {
 				Price:    decimal.NewFromFloat(46300),
 			}},
 			entryData: map[string]interface{}{
-				"baseline_trigger": map[string]interface{}{
+				"trendline_trigger": map[string]interface{}{
 					"trigger_type": "line",
 					"operator":     ">=",
 					"time_1":       "2021-08-17T11:45:00Z",
@@ -375,11 +375,11 @@ func TestBaselineAllOrders(t *testing.T) {
 					"time_2":       "2021-08-18T10:00:00Z",
 					"price_2":      "45560.0",
 				},
-				"baseline_offset_percent": 0.01,
+				"trendline_offset_percent": 0.01,
 			},
 			stopLossOrder: &order.StopLoss{
-				BaselineReadjustmentEnabled: false,
-				LossTolerancePercent:        0.01,
+				TrendlineReadjustmentEnabled: false,
+				LossTolerancePercent:         0.01,
 			},
 			feeds: []testFeed{
 				{price: decimal.NewFromFloat(45595.56), time: time.Date(2021, 8, 18, 15, 46, 0, 0, time.UTC), expectedHooks: nil},
@@ -404,7 +404,7 @@ func TestBaselineAllOrders(t *testing.T) {
 				Price:    decimal.NewFromFloat(46300),
 			}},
 			entryData: map[string]interface{}{
-				"baseline_trigger": map[string]interface{}{
+				"trendline_trigger": map[string]interface{}{
 					"trigger_type": "line",
 					"operator":     ">=",
 					"time_1":       "2021-08-17T11:45:00Z",
@@ -412,7 +412,7 @@ func TestBaselineAllOrders(t *testing.T) {
 					"time_2":       "2021-08-18T10:00:00Z",
 					"price_2":      "45560",
 				},
-				"baseline_offset_percent": 0.01,
+				"trendline_offset_percent": 0.01,
 			},
 			feeds: []testFeed{
 				{price: decimal.NewFromFloat(45595.56), time: time.Date(2021, 8, 18, 15, 46, 0, 0, time.UTC), expectedHooks: nil},
@@ -428,7 +428,7 @@ func TestBaselineAllOrders(t *testing.T) {
 			title: "long - (breakout) with stop-loss and without take-profit order",
 			side:  order.LONG,
 			entryData: map[string]interface{}{
-				"baseline_trigger": map[string]interface{}{
+				"trendline_trigger": map[string]interface{}{
 					"trigger_type": "line",
 					"operator":     ">=",
 					"time_1":       "2021-08-17T11:45:00Z",
@@ -436,11 +436,11 @@ func TestBaselineAllOrders(t *testing.T) {
 					"time_2":       "2021-08-18T10:00:00Z",
 					"price_2":      "45560",
 				},
-				"baseline_offset_percent": 0.01,
+				"trendline_offset_percent": 0.01,
 			},
 			stopLossOrder: &order.StopLoss{
-				BaselineReadjustmentEnabled: false,
-				LossTolerancePercent:        0.01,
+				TrendlineReadjustmentEnabled: false,
+				LossTolerancePercent:         0.01,
 			},
 			feeds: []testFeed{
 				{price: decimal.NewFromFloat(45595.56), time: time.Date(2021, 8, 18, 15, 46, 0, 0, time.UTC), expectedHooks: nil},
@@ -462,7 +462,7 @@ func TestBaselineAllOrders(t *testing.T) {
 			title: "long - (breakout) without stop-loss and take-profit order",
 			side:  order.LONG,
 			entryData: map[string]interface{}{
-				"baseline_trigger": map[string]interface{}{
+				"trendline_trigger": map[string]interface{}{
 					"trigger_type": "line",
 					"operator":     ">=",
 					"time_1":       "2021-08-17T11:45:00Z",
@@ -470,7 +470,7 @@ func TestBaselineAllOrders(t *testing.T) {
 					"time_2":       "2021-08-18T10:00:00Z",
 					"price_2":      "45560",
 				},
-				"baseline_offset_percent": 0.01,
+				"trendline_offset_percent": 0.01,
 			},
 			feeds: []testFeed{
 				{price: decimal.NewFromFloat(45595.56), time: time.Date(2021, 8, 18, 15, 46, 0, 0, time.UTC), expectedHooks: nil},
@@ -485,11 +485,11 @@ func TestBaselineAllOrders(t *testing.T) {
 			title: "short - (breakout) with stop-loss and take-profit order",
 			side:  order.SHORT,
 			stopLossOrder: &order.StopLoss{
-				BaselineReadjustmentEnabled: false,
-				LossTolerancePercent:        0.01,
+				TrendlineReadjustmentEnabled: false,
+				LossTolerancePercent:         0.01,
 			},
 			entryData: map[string]interface{}{
-				"baseline_trigger": map[string]interface{}{
+				"trendline_trigger": map[string]interface{}{
 					"trigger_type": "line",
 					"operator":     "<=",
 					"time_1":       "2021-08-09T01:15:00Z",
@@ -497,7 +497,7 @@ func TestBaselineAllOrders(t *testing.T) {
 					"time_2":       "2021-08-10T16:30:00Z",
 					"price_2":      "44589.46",
 				},
-				"baseline_offset_percent": 0.01,
+				"trendline_offset_percent": 0.01,
 			},
 			takeProfitOrder: &order.TakeProfit{Trigger: &trigger.Limit{
 				Operator: "<=",
@@ -518,7 +518,7 @@ func TestBaselineAllOrders(t *testing.T) {
 			title: "short - (breakout) without stop-loss and with take-profit order",
 			side:  order.SHORT,
 			entryData: map[string]interface{}{
-				"baseline_trigger": map[string]interface{}{
+				"trendline_trigger": map[string]interface{}{
 					"trigger_type": "line",
 					"operator":     "<=",
 					"time_1":       "2021-08-09T01:15:00Z",
@@ -526,7 +526,7 @@ func TestBaselineAllOrders(t *testing.T) {
 					"time_2":       "2021-08-10T16:30:00Z",
 					"price_2":      "44589.46",
 				},
-				"baseline_offset_percent": 0.01,
+				"trendline_offset_percent": 0.01,
 			},
 			takeProfitOrder: &order.TakeProfit{Trigger: &trigger.Limit{
 				Operator: "<=",
@@ -547,11 +547,11 @@ func TestBaselineAllOrders(t *testing.T) {
 			title: "short - (breakout) with stop-loss and without take-profit order",
 			side:  order.SHORT,
 			stopLossOrder: &order.StopLoss{
-				BaselineReadjustmentEnabled: false,
-				LossTolerancePercent:        0.01,
+				TrendlineReadjustmentEnabled: false,
+				LossTolerancePercent:         0.01,
 			},
 			entryData: map[string]interface{}{
-				"baseline_trigger": map[string]interface{}{
+				"trendline_trigger": map[string]interface{}{
 					"trigger_type": "line",
 					"operator":     "<=",
 					"time_1":       "2021-08-09T01:15:00Z",
@@ -559,7 +559,7 @@ func TestBaselineAllOrders(t *testing.T) {
 					"time_2":       "2021-08-10T16:30:00Z",
 					"price_2":      "44589.46",
 				},
-				"baseline_offset_percent": 0.01,
+				"trendline_offset_percent": 0.01,
 			},
 			feeds: []testFeed{
 				{price: decimal.NewFromFloat(45581), time: time.Date(2021, 8, 11, 23, 58, 0, 0, time.UTC), expectedHooks: nil},                                                  // 45580.49
@@ -577,7 +577,7 @@ func TestBaselineAllOrders(t *testing.T) {
 			title: "short - (breakout) without stop-loss and take-profit order",
 			side:  order.SHORT,
 			entryData: map[string]interface{}{
-				"baseline_trigger": map[string]interface{}{
+				"trendline_trigger": map[string]interface{}{
 					"trigger_type": "line",
 					"operator":     "<=",
 					"time_1":       "2021-08-09T01:15:00Z",
@@ -585,7 +585,7 @@ func TestBaselineAllOrders(t *testing.T) {
 					"time_2":       "2021-08-10T16:30:00Z",
 					"price_2":      "44589.46",
 				},
-				"baseline_offset_percent": 0.01,
+				"trendline_offset_percent": 0.01,
 			},
 			feeds: []testFeed{
 				{price: decimal.NewFromFloat(45581), time: time.Date(2021, 8, 11, 23, 58, 0, 0, time.UTC), expectedHooks: nil},                        // 45580.49
@@ -598,14 +598,14 @@ func TestBaselineAllOrders(t *testing.T) {
 
 	for _, tc := range testcases {
 		// Entry order has its process when it initialises
-		entryOrder, err := order.NewEntry(tc.side, "baseline", tc.entryData)
+		entryOrder, err := order.NewEntry(tc.side, "trendline", tc.entryData)
 		if err != nil {
-			t.Error("TestBaselineAllOrders ", err)
+			t.Error("TestTrendlineAllOrders ", err)
 			continue
 		}
 		c := &Contract{
 			Side:            tc.side,
-			EntryType:       "baseline",
+			EntryType:       "trendline",
 			EntryOrder:      entryOrder,
 			TakeProfitOrder: tc.takeProfitOrder,
 			StopLossOrder:   tc.stopLossOrder,
@@ -616,7 +616,7 @@ func TestBaselineAllOrders(t *testing.T) {
 		for i, feed := range tc.feeds {
 			c.CheckPrice(Mark{Time: feed.time, Price: feed.price})
 			if !reflect.DeepEqual(feed.expectedHooks, h.funcNames) {
-				t.Errorf("TestBaselineAllOrders case '%s' (%d) - expect '%v', but got '%v'", tc.title, i, feed.expectedHooks, h.funcNames)
+				t.Errorf("TestTrendlineAllOrders case '%s' (%d) - expect '%v', but got '%v'", tc.title, i, feed.expectedHooks, h.funcNames)
 			}
 			// Reset func names so that we can get fresh hooks each feed
 			h.resetFuncNames()
@@ -624,8 +624,8 @@ func TestBaselineAllOrders(t *testing.T) {
 	}
 }
 
-// entry_type 'baseline'
-func TestBaselineOffsetAndLossTolerancePercent(t *testing.T) {
+// entry_type 'trendline'
+func TestTrendlineOffsetAndLossTolerancePercent(t *testing.T) {
 	testcases := []struct {
 		title           string
 		side            order.Side
@@ -638,7 +638,7 @@ func TestBaselineOffsetAndLossTolerancePercent(t *testing.T) {
 			title: "long - +0.01 / 0.01",
 			side:  order.LONG,
 			entryData: map[string]interface{}{
-				"baseline_trigger": map[string]interface{}{
+				"trendline_trigger": map[string]interface{}{
 					"trigger_type": "line",
 					"operator":     ">=",
 					"time_1":       "2021-08-17T11:45:00Z",
@@ -646,7 +646,7 @@ func TestBaselineOffsetAndLossTolerancePercent(t *testing.T) {
 					"time_2":       "2021-08-18T10:00:00Z",
 					"price_2":      "45560",
 				},
-				"baseline_offset_percent": 0.01,
+				"trendline_offset_percent": 0.01,
 			},
 			stopLossOrder: &order.StopLoss{
 				LossTolerancePercent: 0.01,
@@ -668,7 +668,7 @@ func TestBaselineOffsetAndLossTolerancePercent(t *testing.T) {
 			title: "long - -0.01 / 0.02",
 			side:  order.LONG,
 			entryData: map[string]interface{}{
-				"baseline_trigger": map[string]interface{}{
+				"trendline_trigger": map[string]interface{}{
 					"trigger_type": "line",
 					"operator":     ">=",
 					"time_1":       "2021-08-17T11:45:00Z",
@@ -676,7 +676,7 @@ func TestBaselineOffsetAndLossTolerancePercent(t *testing.T) {
 					"time_2":       "2021-08-18T10:00:00Z",
 					"price_2":      "45560",
 				},
-				"baseline_offset_percent": -0.01,
+				"trendline_offset_percent": -0.01,
 			},
 			stopLossOrder: &order.StopLoss{
 				LossTolerancePercent: 0.02,
@@ -698,7 +698,7 @@ func TestBaselineOffsetAndLossTolerancePercent(t *testing.T) {
 			title: "short - +0.01 / 0.01",
 			side:  order.SHORT,
 			entryData: map[string]interface{}{
-				"baseline_trigger": map[string]interface{}{
+				"trendline_trigger": map[string]interface{}{
 					"trigger_type": "line",
 					"operator":     "<=",
 					"time_1":       "2021-08-17T11:45:00Z",
@@ -706,7 +706,7 @@ func TestBaselineOffsetAndLossTolerancePercent(t *testing.T) {
 					"time_2":       "2021-08-18T10:00:00Z",
 					"price_2":      "49560",
 				},
-				"baseline_offset_percent": 0.01,
+				"trendline_offset_percent": 0.01,
 			},
 			stopLossOrder: &order.StopLoss{
 				LossTolerancePercent: 0.01,
@@ -728,7 +728,7 @@ func TestBaselineOffsetAndLossTolerancePercent(t *testing.T) {
 			title: "short - -0.01 / 0.02",
 			side:  order.SHORT,
 			entryData: map[string]interface{}{
-				"baseline_trigger": map[string]interface{}{
+				"trendline_trigger": map[string]interface{}{
 					"trigger_type": "line",
 					"operator":     "<=",
 					"time_1":       "2021-08-17T11:45:00Z",
@@ -736,7 +736,7 @@ func TestBaselineOffsetAndLossTolerancePercent(t *testing.T) {
 					"time_2":       "2021-08-18T10:00:00Z",
 					"price_2":      "49560",
 				},
-				"baseline_offset_percent": -0.01,
+				"trendline_offset_percent": -0.01,
 			},
 			stopLossOrder: &order.StopLoss{
 				LossTolerancePercent: 0.02,
@@ -758,14 +758,14 @@ func TestBaselineOffsetAndLossTolerancePercent(t *testing.T) {
 
 	for _, tc := range testcases {
 		// Entry order has its process when it initialises
-		entryOrder, err := order.NewEntry(tc.side, "baseline", tc.entryData)
+		entryOrder, err := order.NewEntry(tc.side, "trendline", tc.entryData)
 		if err != nil {
-			t.Error("TestBaselineOffsetAndLossTolerancePercent ", err)
+			t.Error("TestTrendlineOffsetAndLossTolerancePercent ", err)
 			continue
 		}
 		c := &Contract{
 			Side:          tc.side,
-			EntryType:     order.ENTRY_BASELINE,
+			EntryType:     order.ENTRY_TRENDLINE,
 			EntryOrder:    entryOrder,
 			StopLossOrder: tc.stopLossOrder,
 		}
@@ -775,7 +775,7 @@ func TestBaselineOffsetAndLossTolerancePercent(t *testing.T) {
 		for i, feed := range tc.feeds {
 			c.CheckPrice(Mark{Time: feed.time, Price: feed.price})
 			if !reflect.DeepEqual(feed.expectedHooks, h.funcNames) {
-				t.Errorf("TestBaselineOffsetAndLossTolerancePercent case '%s' (%d) - expect '%v', but got '%v'", tc.title, i, feed.expectedHooks, h.funcNames)
+				t.Errorf("TestTrendlineOffsetAndLossTolerancePercent case '%s' (%d) - expect '%v', but got '%v'", tc.title, i, feed.expectedHooks, h.funcNames)
 			}
 			// Reset func names so that we can get fresh hooks each feed
 			h.resetFuncNames()
@@ -886,7 +886,7 @@ func TestLimitFlipOperatorEnabled(t *testing.T) {
 	}
 }
 
-func TestBaselineFlipOperatorEnabled(t *testing.T) {
+func TestTrendlineFlipOperatorEnabled(t *testing.T) {
 	testcases := []struct {
 		title           string
 		side            order.Side
@@ -906,7 +906,7 @@ func TestBaselineFlipOperatorEnabled(t *testing.T) {
 				Price2:   decimal.NewFromFloat(50139.96),
 			}},
 			entryData: map[string]interface{}{
-				"baseline_trigger": map[string]interface{}{
+				"trendline_trigger": map[string]interface{}{
 					"trigger_type": "line",
 					"operator":     "<=",
 					"time_1":       "2021-08-20T12:45:00Z",
@@ -914,12 +914,12 @@ func TestBaselineFlipOperatorEnabled(t *testing.T) {
 					"time_2":       "2021-08-21T11:00:00Z",
 					"price_2":      "48217.18",
 				},
-				"baseline_offset_percent": 0.01,
-				"flip_operator_enabled":   true,
+				"trendline_offset_percent": 0.01,
+				"flip_operator_enabled":    true,
 			},
 			stopLossOrder: &order.StopLoss{
-				BaselineReadjustmentEnabled: false,
-				LossTolerancePercent:        0.01,
+				TrendlineReadjustmentEnabled: false,
+				LossTolerancePercent:         0.01,
 			},
 			feeds: []testFeed{
 				{price: decimal.NewFromFloat(47750), time: time.Date(2021, 8, 20, 19, 00, 0, 0, time.UTC), expectedHooks: nil},                                                  //
@@ -948,7 +948,7 @@ func TestBaselineFlipOperatorEnabled(t *testing.T) {
 			title: "long - (parallel channel, buy the dip) without stop-loss and take-profit order",
 			side:  order.LONG,
 			entryData: map[string]interface{}{
-				"baseline_trigger": map[string]interface{}{
+				"trendline_trigger": map[string]interface{}{
 					"trigger_type": "line",
 					"operator":     "<=",
 					"time_1":       "2021-08-20T12:45:00Z",
@@ -956,8 +956,8 @@ func TestBaselineFlipOperatorEnabled(t *testing.T) {
 					"time_2":       "2021-08-21T11:00:00Z",
 					"price_2":      "48217.18",
 				},
-				"baseline_offset_percent": 0.01,
-				"flip_operator_enabled":   true,
+				"trendline_offset_percent": 0.01,
+				"flip_operator_enabled":    true,
 			},
 			feeds: []testFeed{
 				{price: decimal.NewFromFloat(47750), time: time.Date(2021, 8, 20, 19, 00, 0, 0, time.UTC), expectedHooks: nil},                        //
@@ -970,11 +970,11 @@ func TestBaselineFlipOperatorEnabled(t *testing.T) {
 			title: "short - (parallel channel, buy the dip) with stop-loss and take-profit order",
 			side:  order.SHORT,
 			stopLossOrder: &order.StopLoss{
-				BaselineReadjustmentEnabled: false,
-				LossTolerancePercent:        0.01,
+				TrendlineReadjustmentEnabled: false,
+				LossTolerancePercent:         0.01,
 			},
 			entryData: map[string]interface{}{
-				"baseline_trigger": map[string]interface{}{
+				"trendline_trigger": map[string]interface{}{
 					"trigger_type": "line",
 					"operator":     ">=",
 					"time_1":       "2021-08-12T03:30:00Z",
@@ -982,8 +982,8 @@ func TestBaselineFlipOperatorEnabled(t *testing.T) {
 					"time_2":       "2021-08-12T20:30:00Z",
 					"price_2":      "44500",
 				},
-				"baseline_offset_percent": 0.01,
-				"flip_operator_enabled":   true,
+				"trendline_offset_percent": 0.01,
+				"flip_operator_enabled":    true,
 			},
 			takeProfitOrder: &order.TakeProfit{Trigger: &trigger.Line{
 				Operator: "<=",
@@ -1021,7 +1021,7 @@ func TestBaselineFlipOperatorEnabled(t *testing.T) {
 			title: "short - (parallel channel, buy the dip) without stop-loss and take-profit order",
 			side:  order.SHORT,
 			entryData: map[string]interface{}{
-				"baseline_trigger": map[string]interface{}{
+				"trendline_trigger": map[string]interface{}{
 					"trigger_type": "line",
 					"operator":     ">=",
 					"time_1":       "2021-08-12T03:30:00Z",
@@ -1029,8 +1029,8 @@ func TestBaselineFlipOperatorEnabled(t *testing.T) {
 					"time_2":       "2021-08-12T20:30:00Z",
 					"price_2":      "44500",
 				},
-				"baseline_offset_percent": 0.01,
-				"flip_operator_enabled":   true,
+				"trendline_offset_percent": 0.01,
+				"flip_operator_enabled":    true,
 			},
 			feeds: []testFeed{
 				{price: decimal.NewFromFloat(45402), time: time.Date(2021, 8, 12, 7, 0, 0, 0, time.UTC), expectedHooks: nil},
@@ -1043,14 +1043,14 @@ func TestBaselineFlipOperatorEnabled(t *testing.T) {
 
 	for _, tc := range testcases {
 		// Entry order has its process when it initialises
-		entryOrder, err := order.NewEntry(tc.side, "baseline", tc.entryData)
+		entryOrder, err := order.NewEntry(tc.side, "trendline", tc.entryData)
 		if err != nil {
-			t.Error("TestBaselineFlipOperatorEnabled ", err)
+			t.Error("TestTrendlineFlipOperatorEnabled ", err)
 			continue
 		}
 		c := &Contract{
 			Side:            tc.side,
-			EntryType:       order.ENTRY_BASELINE,
+			EntryType:       order.ENTRY_TRENDLINE,
 			TakeProfitOrder: tc.takeProfitOrder,
 			EntryOrder:      entryOrder,
 			StopLossOrder:   tc.stopLossOrder,
@@ -1061,7 +1061,7 @@ func TestBaselineFlipOperatorEnabled(t *testing.T) {
 		for i, feed := range tc.feeds {
 			c.CheckPrice(Mark{Time: feed.time, Price: feed.price})
 			if !reflect.DeepEqual(feed.expectedHooks, h.funcNames) {
-				t.Errorf("TestBaselineFlipOperatorEnabled case '%s' (%d) - expect '%v', but got '%v'", tc.title, i, feed.expectedHooks, h.funcNames)
+				t.Errorf("TestTrendlineFlipOperatorEnabled case '%s' (%d) - expect '%v', but got '%v'", tc.title, i, feed.expectedHooks, h.funcNames)
 			}
 			// Reset func names so that we can get fresh hooks each feed
 			h.resetFuncNames()
@@ -1069,14 +1069,14 @@ func TestBaselineFlipOperatorEnabled(t *testing.T) {
 	}
 }
 
-// entry_type 'baseline'
-func TestBaselineReadjustmentTrue(t *testing.T) {
+// entry_type 'trendline'
+func TestTrendlineReadjustmentTrue(t *testing.T) {
 	// Short
 	/*
 		{
-		  "entry_type": "baseline",
+		  "entry_type": "trendline",
 		  "entry_order": {
-			"baseline_trigger": {
+			"trendline_trigger": {
 			  "trigger_type": "line",
 			  "operator": "<=",
 			  "time_1": "2021-08-09 01:15:00",
@@ -1084,11 +1084,11 @@ func TestBaselineReadjustmentTrue(t *testing.T) {
 			  "time_2": "2021-08-10 16:30:00",
 			  "price_2": 44589.46
 			},
-			"baseline_offset_percent": 0.01
+			"trendline_offset_percent": 0.01
 		  },
 		  "stop_loss_order": {
 			"loss_tolerance_percent": 0.01,
-			"baseline_readjustment_enabled": true
+			"trendline_readjustment_enabled": true
 		  },
 		  "take_profit_order": {
 			"trigger": {
@@ -1099,25 +1099,25 @@ func TestBaselineReadjustmentTrue(t *testing.T) {
 		  }
 		}
 
-		EntryTriggered             baseline: 46040.90  &{<= 2021-08-09 01:15:00 +0000 UTC 42779 2021-08-10 16:30:00 +0000 UTC 44589.46}
+		EntryTriggered             trendline: 46040.90  &{<= 2021-08-09 01:15:00 +0000 UTC 42779 2021-08-10 16:30:00 +0000 UTC 44589.46}
 		EntryTriggered                entry: 45580.49  &{<= 2021-08-09 01:15:00 +0000 UTC 42351.21 2021-08-10 16:30:00 +0000 UTC 44143.5654}
 		EntryTriggered                  buy: 45550  '2021-08-11 23:58'
 		StopLossTriggerCreated    stop-loss: 46005.50  >=
 		! StopLossTriggered            sell: 46052.25  '2021-08-12 01:32'  ($1000 => $1011)
-		- EntryBaselineTriggerUpdated breakout: {2021-08-12 00:00:00 +0000 UTC 45444.64}
-		- EntryBaselineTriggerUpdated baseline: &{<= 2021-08-09 01:15:00 +0000 UTC 42779 2021-08-12 00:00:00 +0000 UTC 45444.64}
-		- EntryBaselineTriggerUpdated    entry: &{<= 2021-08-09 01:15:00 +0000 UTC 42351.21 2021-08-12 00:00:00 +0000 UTC 44990.1936}
+		- EntryTrendlineTriggerUpdated breakout: {2021-08-12 00:00:00 +0000 UTC 45444.64}
+		- EntryTrendlineTriggerUpdated trendline: &{<= 2021-08-09 01:15:00 +0000 UTC 42779 2021-08-12 00:00:00 +0000 UTC 45444.64}
+		- EntryTrendlineTriggerUpdated    entry: &{<= 2021-08-09 01:15:00 +0000 UTC 42351.21 2021-08-12 00:00:00 +0000 UTC 44990.1936}
 		-----------------------
-		EntryTriggered             baseline: 45648.72  &{<= 2021-08-09 01:15:00 +0000 UTC 42779 2021-08-12 00:00:00 +0000 UTC 45444.64}
+		EntryTriggered             trendline: 45648.72  &{<= 2021-08-09 01:15:00 +0000 UTC 42779 2021-08-12 00:00:00 +0000 UTC 45444.64}
 		EntryTriggered                entry: 45192.24  &{<= 2021-08-09 01:15:00 +0000 UTC 42351.21 2021-08-12 00:00:00 +0000 UTC 44990.1936}
 		EntryTriggered                  buy: 45162.76  '2021-08-12 05:25'
 		StopLossTriggerCreated    stop-loss: 45614.39  >=
 		! StopLossTriggered            sell: 45619.82  '2021-08-12 10:15'  ($1011 => $1021)
-		- EntryBaselineTriggerUpdated breakout: {2021-08-12 05:36:00 +0000 UTC 44859.07}
-		- EntryBaselineTriggerUpdated baseline: &{<= 2021-08-09 01:15:00 +0000 UTC 42779 2021-08-12 05:36:00 +0000 UTC 44859.07}
-		- EntryBaselineTriggerUpdated    entry: &{<= 2021-08-09 01:15:00 +0000 UTC 42351.21 2021-08-12 05:36:00 +0000 UTC 44410.4793}
+		- EntryTrendlineTriggerUpdated breakout: {2021-08-12 05:36:00 +0000 UTC 44859.07}
+		- EntryTrendlineTriggerUpdated trendline: &{<= 2021-08-09 01:15:00 +0000 UTC 42779 2021-08-12 05:36:00 +0000 UTC 44859.07}
+		- EntryTrendlineTriggerUpdated    entry: &{<= 2021-08-09 01:15:00 +0000 UTC 42351.21 2021-08-12 05:36:00 +0000 UTC 44410.4793}
 		-----------------------
-		EntryTriggered             baseline: 45045.69  &{<= 2021-08-09 01:15:00 +0000 UTC 42779 2021-08-12 05:36:00 +0000 UTC 44859.07}
+		EntryTriggered             trendline: 45045.69  &{<= 2021-08-09 01:15:00 +0000 UTC 42779 2021-08-12 05:36:00 +0000 UTC 44859.07}
 		EntryTriggered                entry: 44595.23  &{<= 2021-08-09 01:15:00 +0000 UTC 42351.21 2021-08-12 05:36:00 +0000 UTC 44410.4793}
 		EntryTriggered                  buy: 44483.92  '2021-08-12 12:27'
 		StopLossTriggerCreated    stop-loss: 44928.76  >=
@@ -1134,14 +1134,14 @@ func TestBaselineReadjustmentTrue(t *testing.T) {
 		feeds           []testFeed
 	}{
 		{
-			title: "long - baseline_readjustment_enabled 'true', p1 > p2, p1 < p2",
+			title: "long - trendline_readjustment_enabled 'true', p1 > p2, p1 < p2",
 			side:  order.LONG,
 			takeProfitOrder: &order.TakeProfit{Trigger: &trigger.Limit{
 				Operator: ">=",
 				Price:    decimal.NewFromFloat(50000),
 			}},
 			entryData: map[string]interface{}{
-				"baseline_trigger": map[string]interface{}{
+				"trendline_trigger": map[string]interface{}{
 					"trigger_type": "line",
 					"operator":     ">=",
 					"time_1":       "2021-08-16T03:00:00Z",
@@ -1149,11 +1149,11 @@ func TestBaselineReadjustmentTrue(t *testing.T) {
 					"time_2":       "2021-08-17T11:45:00Z",
 					"price_2":      "47160",
 				},
-				"baseline_offset_percent": 0.01,
+				"trendline_offset_percent": 0.01,
 			},
 			stopLossOrder: &order.StopLoss{
-				BaselineReadjustmentEnabled: true,
-				LossTolerancePercent:        0.01,
+				TrendlineReadjustmentEnabled: true,
+				LossTolerancePercent:         0.01,
 			},
 			feeds: []testFeed{
 				// p1 > p2
@@ -1162,20 +1162,20 @@ func TestBaselineReadjustmentTrue(t *testing.T) {
 				{price: decimal.NewFromFloat(45703), time: time.Date(2021, 8, 19, 17, 0, 0, 0, time.UTC), expectedHooks: nil},
 				{price: decimal.NewFromFloat(46877), time: time.Date(2021, 8, 19, 20, 0, 0, 0, time.UTC), expectedHooks: nil}, // set breakout peak
 				{price: decimal.NewFromFloat(45703), time: time.Date(2021, 8, 19, 21, 0, 0, 0, time.UTC), expectedHooks: nil},
-				{price: decimal.NewFromFloat(45702), time: time.Date(2021, 8, 19, 21, 0, 0, 0, time.UTC), expectedHooks: []string{"StopLossTriggered", "EntryBaselineTriggerUpdated"}}, // stop-loss 45702.36, entry: &{<= 2021-08-16 03:00:00 +0000 UTC 48534.3683 2021-08-19 20:00:00 +0000 UTC 47345.77}
+				{price: decimal.NewFromFloat(45702), time: time.Date(2021, 8, 19, 21, 0, 0, 0, time.UTC), expectedHooks: []string{"StopLossTriggered", "EntryTrendlineTriggerUpdated"}}, // stop-loss 45702.36, entry: &{<= 2021-08-16 03:00:00 +0000 UTC 48534.3683 2021-08-19 20:00:00 +0000 UTC 47345.77}
 				{price: decimal.NewFromFloat(47158), time: time.Date(2021, 8, 20, 10, 0, 0, 0, time.UTC), expectedHooks: nil},
 				{price: decimal.NewFromFloat(47159), time: time.Date(2021, 8, 20, 10, 0, 0, 0, time.UTC), expectedHooks: []string{"EntryTriggered", "StopLossTriggerCreated"}}, // entry: 47158.79948089887634973873
 
 				// p1 < p2
 				{price: decimal.NewFromFloat(49999), time: time.Date(2021, 8, 20, 20, 0, 0, 0, time.UTC), expectedHooks: nil}, // Set breakout peak
 				{price: decimal.NewFromFloat(46688), time: time.Date(2021, 8, 20, 20, 0, 0, 0, time.UTC), expectedHooks: nil},
-				{price: decimal.NewFromFloat(46687), time: time.Date(2021, 8, 20, 20, 0, 0, 0, time.UTC), expectedHooks: []string{"StopLossTriggered", "EntryBaselineTriggerUpdated"}}, // stop-loss: 46687.41, entry: 48534.3683 p1 = p2
+				{price: decimal.NewFromFloat(46687), time: time.Date(2021, 8, 20, 20, 0, 0, 0, time.UTC), expectedHooks: []string{"StopLossTriggered", "EntryTrendlineTriggerUpdated"}}, // stop-loss: 46687.41, entry: 48534.3683 p1 = p2
 				{price: decimal.NewFromFloat(48534), time: time.Date(2021, 8, 20, 25, 0, 0, 0, time.UTC), expectedHooks: nil},
 				{price: decimal.NewFromFloat(48535), time: time.Date(2021, 8, 20, 25, 0, 0, 0, time.UTC), expectedHooks: []string{"EntryTriggered", "StopLossTriggerCreated"}}, // entry: 48534.3683
 				// re-trigger stop-loss and entry
 				{price: decimal.NewFromFloat(49999), time: time.Date(2021, 8, 20, 25, 0, 0, 0, time.UTC), expectedHooks: nil}, // Set breakout peak
 				{price: decimal.NewFromFloat(48050), time: time.Date(2021, 8, 20, 25, 0, 0, 0, time.UTC), expectedHooks: nil},
-				{price: decimal.NewFromFloat(48049), time: time.Date(2021, 8, 20, 25, 0, 0, 0, time.UTC), expectedHooks: []string{"StopLossTriggered", "EntryBaselineTriggerUpdated"}}, // stop-loss: 48049.65
+				{price: decimal.NewFromFloat(48049), time: time.Date(2021, 8, 20, 25, 0, 0, 0, time.UTC), expectedHooks: []string{"StopLossTriggered", "EntryTrendlineTriggerUpdated"}}, // stop-loss: 48049.65
 				{price: decimal.NewFromFloat(48534), time: time.Date(2021, 8, 20, 25, 0, 0, 0, time.UTC), expectedHooks: nil},
 				{price: decimal.NewFromFloat(48535), time: time.Date(2021, 8, 20, 25, 0, 0, 0, time.UTC), expectedHooks: []string{"EntryTriggered", "StopLossTriggerCreated"}}, // entry: 48534.3683
 
@@ -1184,14 +1184,14 @@ func TestBaselineReadjustmentTrue(t *testing.T) {
 			},
 		},
 		{
-			title: "short - baseline_readjustment_enabled 'true', p1 < p2, p1 > p2",
+			title: "short - trendline_readjustment_enabled 'true', p1 < p2, p1 > p2",
 			side:  order.SHORT,
 			stopLossOrder: &order.StopLoss{
-				BaselineReadjustmentEnabled: true,
-				LossTolerancePercent:        0.01,
+				TrendlineReadjustmentEnabled: true,
+				LossTolerancePercent:         0.01,
 			},
 			entryData: map[string]interface{}{
-				"baseline_trigger": map[string]interface{}{
+				"trendline_trigger": map[string]interface{}{
 					"trigger_type": "line",
 					"operator":     "<=",
 					"time_1":       "2021-08-09T01:15:00Z",
@@ -1199,7 +1199,7 @@ func TestBaselineReadjustmentTrue(t *testing.T) {
 					"time_2":       "2021-08-10T16:30:00Z",
 					"price_2":      "44589.46",
 				},
-				"baseline_offset_percent": 0.01,
+				"trendline_offset_percent": 0.01,
 			},
 			takeProfitOrder: &order.TakeProfit{Trigger: &trigger.Limit{
 				Operator: "<=",
@@ -1211,25 +1211,25 @@ func TestBaselineReadjustmentTrue(t *testing.T) {
 				{price: decimal.NewFromFloat(45550), time: time.Date(2021, 8, 11, 23, 58, 0, 0, time.UTC), expectedHooks: []string{"EntryTriggered", "StopLossTriggerCreated"}}, // 45580.49406038216555410284
 				{price: decimal.NewFromFloat(45444.64), time: time.Date(2021, 8, 12, 0, 0, 0, 0, time.UTC), expectedHooks: nil},                                                 // record breakout peak
 				{price: decimal.NewFromFloat(46005), time: time.Date(2021, 8, 12, 1, 31, 0, 0, time.UTC), expectedHooks: nil},
-				{price: decimal.NewFromFloat(46006), time: time.Date(2021, 8, 12, 1, 32, 0, 0, time.UTC), expectedHooks: []string{"StopLossTriggered", "EntryBaselineTriggerUpdated"}},
+				{price: decimal.NewFromFloat(46006), time: time.Date(2021, 8, 12, 1, 32, 0, 0, time.UTC), expectedHooks: []string{"StopLossTriggered", "EntryTrendlineTriggerUpdated"}},
 				{price: decimal.NewFromFloat(45192), time: time.Date(2021, 8, 12, 5, 24, 0, 0, time.UTC), expectedHooks: nil},                                                     // 45191.61425639575967814936
 				{price: decimal.NewFromFloat(45162.76), time: time.Date(2021, 8, 12, 5, 25, 0, 0, time.UTC), expectedHooks: []string{"EntryTriggered", "StopLossTriggerCreated"}}, // 45192.23592508833933482604
 				{price: decimal.NewFromFloat(44859.07), time: time.Date(2021, 8, 12, 5, 36, 0, 0, time.UTC), expectedHooks: nil},                                                  // set breakout peak
 				{price: decimal.NewFromFloat(45614), time: time.Date(2021, 8, 12, 10, 14, 0, 0, time.UTC), expectedHooks: nil},
-				{price: decimal.NewFromFloat(45619.82), time: time.Date(2021, 8, 12, 10, 15, 0, 0, time.UTC), expectedHooks: []string{"StopLossTriggered", "EntryBaselineTriggerUpdated"}},
+				{price: decimal.NewFromFloat(45619.82), time: time.Date(2021, 8, 12, 10, 15, 0, 0, time.UTC), expectedHooks: []string{"StopLossTriggered", "EntryTrendlineTriggerUpdated"}},
 				{price: decimal.NewFromFloat(44595), time: time.Date(2021, 8, 12, 12, 26, 0, 0, time.UTC), expectedHooks: nil},                                                     // 44594.78412711198434700978
 				{price: decimal.NewFromFloat(44483.92), time: time.Date(2021, 8, 12, 12, 27, 0, 0, time.UTC), expectedHooks: []string{"EntryTriggered", "StopLossTriggerCreated"}}, // 44595.23
 
 				// p1 > p2
 				{price: decimal.NewFromFloat(41000), time: time.Date(2021, 8, 12, 14, 56, 0, 0, time.UTC), expectedHooks: nil}, // set breakout peak = 41000
 				{price: decimal.NewFromFloat(44928), time: time.Date(2021, 8, 12, 14, 56, 0, 0, time.UTC), expectedHooks: nil},
-				{price: decimal.NewFromFloat(44929), time: time.Date(2021, 8, 12, 14, 56, 0, 0, time.UTC), expectedHooks: []string{"StopLossTriggered", "EntryBaselineTriggerUpdated"}}, // stop-loss: 44928.7592  , baseline: 42779 p1 = p2
+				{price: decimal.NewFromFloat(44929), time: time.Date(2021, 8, 12, 14, 56, 0, 0, time.UTC), expectedHooks: []string{"StopLossTriggered", "EntryTrendlineTriggerUpdated"}}, // stop-loss: 44928.7592  , trendline: 42779 p1 = p2
 				{price: decimal.NewFromFloat(42352), time: time.Date(2021, 8, 12, 14, 56, 0, 0, time.UTC), expectedHooks: nil},
 				{price: decimal.NewFromFloat(42351), time: time.Date(2021, 8, 12, 14, 56, 0, 0, time.UTC), expectedHooks: []string{"EntryTriggered", "StopLossTriggerCreated"}}, // entry: 42351.21 (p1 42779*0.99) (p1 = p2)
 				// re-trigger stop-loss and entry
 				{price: decimal.NewFromFloat(41000), time: time.Date(2021, 8, 12, 14, 56, 0, 0, time.UTC), expectedHooks: nil}, // set breakout peak = 41000
 				{price: decimal.NewFromFloat(42774), time: time.Date(2021, 8, 12, 14, 56, 0, 0, time.UTC), expectedHooks: nil},
-				{price: decimal.NewFromFloat(42775), time: time.Date(2021, 8, 12, 14, 56, 0, 0, time.UTC), expectedHooks: []string{"StopLossTriggered", "EntryBaselineTriggerUpdated"}}, // stop-loss: 42774.51 (42351*1.01)
+				{price: decimal.NewFromFloat(42775), time: time.Date(2021, 8, 12, 14, 56, 0, 0, time.UTC), expectedHooks: []string{"StopLossTriggered", "EntryTrendlineTriggerUpdated"}}, // stop-loss: 42774.51 (42351*1.01)
 				{price: decimal.NewFromFloat(42352), time: time.Date(2021, 8, 12, 14, 56, 0, 0, time.UTC), expectedHooks: nil},
 				{price: decimal.NewFromFloat(42351), time: time.Date(2021, 8, 12, 14, 56, 0, 0, time.UTC), expectedHooks: []string{"EntryTriggered", "StopLossTriggerCreated"}}, // entry: 42351.21 (42779*0.99) (p1 = p2)
 
@@ -1241,14 +1241,14 @@ func TestBaselineReadjustmentTrue(t *testing.T) {
 
 	for _, tc := range testcases {
 		// Entry order has its process when it initialises
-		entryOrder, err := order.NewEntry(tc.side, order.ENTRY_BASELINE, tc.entryData)
+		entryOrder, err := order.NewEntry(tc.side, order.ENTRY_TRENDLINE, tc.entryData)
 		if err != nil {
-			t.Error("TestBaselineReadjustment ", err)
+			t.Error("TestTrendlineReadjustment ", err)
 			continue
 		}
 		c := &Contract{
 			Side:            tc.side,
-			EntryType:       order.ENTRY_BASELINE,
+			EntryType:       order.ENTRY_TRENDLINE,
 			EntryOrder:      entryOrder,
 			TakeProfitOrder: tc.takeProfitOrder,
 			StopLossOrder:   tc.stopLossOrder,
@@ -1258,7 +1258,7 @@ func TestBaselineReadjustmentTrue(t *testing.T) {
 		for i, feed := range tc.feeds {
 			c.CheckPrice(Mark{Time: feed.time, Price: feed.price})
 			if !reflect.DeepEqual(feed.expectedHooks, h.funcNames) {
-				t.Errorf("TestBaselineReadjustment case '%s' (%d) - expect '%v', but got '%v'", tc.title, i, feed.expectedHooks, h.funcNames)
+				t.Errorf("TestTrendlineReadjustment case '%s' (%d) - expect '%v', but got '%v'", tc.title, i, feed.expectedHooks, h.funcNames)
 			}
 			// Reset func names so that we can get fresh hooks each feed
 			h.resetFuncNames()
