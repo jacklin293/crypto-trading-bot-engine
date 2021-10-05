@@ -326,7 +326,6 @@ func (c *Contract) resetBreakoutPeak() {
 }
 
 // TODO test
-
 func TranslateStatus(s Status) string {
 	switch s {
 	case CLOSED:

@@ -273,11 +273,12 @@ func (ch *contractHook) StopLossTriggered(c *contract.Contract) (bool, error) {
 
 	// Update memory data
 	ch.contractStrategy.PositionStatus = int64(contract.CLOSED)
+	ch.contractStrategy.ExchangeOrdersDetails = datatypes.JSONMap{}
 	return false, nil
 }
 
 func (ch *contractHook) EntryTrendlineTriggerUpdated(c *contract.Contract) {
-	text := fmt.Sprintf("[Info] '%s %s' entry trendline has been updated", order.TranslateSideByInt(ch.contractStrategy.Side), ch.contractStrategy.Symbol)
+	text := fmt.Sprintf("[Info] '%s %s' entry trend line has been updated", order.TranslateSideByInt(ch.contractStrategy.Side), ch.contractStrategy.Symbol)
 	ch.notify(text)
 
 	// Send new trendline
