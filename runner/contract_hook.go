@@ -80,7 +80,7 @@ func (ch *contractHook) EntryTriggered(c *contract.Contract, t time.Time, p deci
 		return p, false, fmt.Errorf("EntryTriggered - failed to get non-closed contract strategies, err: %v", err)
 	}
 	if count > 0 {
-		text := fmt.Sprintf("[Warn] %s strategies can only be triggered once at a time. '%s %s $%s' will be ignored and disabled", ch.contractStrategy.Symbol, order.TranslateSideByInt(ch.contractStrategy.Side), ch.contractStrategy.Symbol, ch.contractStrategy.Margin)
+		text := fmt.Sprintf("[Warn] '%s %s $%s' is triggered, but conflicts with others. Please make sure other %s strategies' status are 'closed'. This strategy will be reset shortly", order.TranslateSideByInt(ch.contractStrategy.Side), ch.contractStrategy.Symbol, ch.contractStrategy.Margin, ch.contractStrategy.Symbol)
 		ch.notify(text)
 		return p, true, nil
 	}
@@ -283,6 +283,7 @@ func (ch *contractHook) TakeProfitTriggered(c *contract.Contract) error {
 
 // NOTE datatypes.JSONMap will escapte `<` into `\u003c`, but it's fine. It can still be unmarchal and turned back to `=` without issue
 // NOTE datatypes.JSONMap will turm time into `2021-09-15T04:00:00Z`
+// NOTE For entry_type 'limit', will have some params that shouldn't have had after this update like `trendline_offset_percent` and `loss_tolerance_percent`, but it's fine
 func (ch *contractHook) ParamsUpdated(c *contract.Contract) (bool, error) {
 	// NOTE Don't save `breakout_peak`, because we want it to be reset after stop-loss order triggered
 	// Update memory data

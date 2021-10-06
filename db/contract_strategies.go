@@ -40,7 +40,7 @@ func (db *DB) GetEnabledContractStrategies() ([]ContractStrategy, int64, error) 
 // TODO Loop with LIMIT until no more
 func (db *DB) GetNonClosedContractStrategiesBySymbol(userUuid string, symbol string, uuid string) ([]ContractStrategy, int64, error) {
 	var css []ContractStrategy
-	result := db.GormDB.Where("user_uuid = ? AND position_status != 0 AND enabled = 1 AND symbol = ? AND uuid != ?", userUuid, symbol, uuid).Find(&css)
+	result := db.GormDB.Where("user_uuid = ? AND position_status != 0 AND symbol = ? AND uuid != ?", userUuid, symbol, uuid).Find(&css)
 	if result.Error != nil && !errors.Is(result.Error, gorm.ErrRecordNotFound) {
 		return css, 0, result.Error
 	}
