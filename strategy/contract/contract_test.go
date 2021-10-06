@@ -45,6 +45,10 @@ func (th *testHook) EntryTrendlineTriggerUpdated(c *Contract) {
 	th.funcNames = append(th.funcNames, "EntryTrendlineTriggerUpdated")
 }
 
+func (th *testHook) EntryTriggerOperatorUpdated(c *Contract) {
+	th.funcNames = append(th.funcNames, "EntryTriggerOperatorUpdated")
+}
+
 func (th *testHook) TakeProfitTriggered(c *Contract) error {
 	th.funcNames = append(th.funcNames, "TakeProfitTriggered")
 	return nil
@@ -813,7 +817,7 @@ func TestLimitFlipOperatorEnabled(t *testing.T) {
 			feeds: []testFeed{
 				// time doesn't matter for 'limit'
 				{price: decimal.NewFromFloat(47001), time: time.Now(), expectedHooks: nil},
-				{price: decimal.NewFromFloat(47000), time: time.Now(), expectedHooks: []string{"EntryTriggered", "StopLossTriggerCreated"}},
+				{price: decimal.NewFromFloat(47000), time: time.Now(), expectedHooks: []string{"EntryTriggered", "StopLossTriggerCreated", "EntryTriggerOperatorUpdated"}},
 				{price: decimal.NewFromFloat(46001), time: time.Now(), expectedHooks: nil},
 				{price: decimal.NewFromFloat(46000), time: time.Now(), expectedHooks: []string{"StopLossTriggered"}},
 				{price: decimal.NewFromFloat(46001), time: time.Now(), expectedHooks: nil},
@@ -848,7 +852,7 @@ func TestLimitFlipOperatorEnabled(t *testing.T) {
 			feeds: []testFeed{
 				// time doesn't matter for 'limit'
 				{price: decimal.NewFromFloat(46999), time: time.Now(), expectedHooks: nil},
-				{price: decimal.NewFromFloat(47000), time: time.Now(), expectedHooks: []string{"EntryTriggered", "StopLossTriggerCreated"}},
+				{price: decimal.NewFromFloat(47000), time: time.Now(), expectedHooks: []string{"EntryTriggered", "StopLossTriggerCreated", "EntryTriggerOperatorUpdated"}},
 				{price: decimal.NewFromFloat(47999), time: time.Now(), expectedHooks: nil},
 				{price: decimal.NewFromFloat(48000), time: time.Now(), expectedHooks: []string{"StopLossTriggered"}},
 				{price: decimal.NewFromFloat(47999), time: time.Now(), expectedHooks: nil},
@@ -922,10 +926,10 @@ func TestTrendlineFlipOperatorEnabled(t *testing.T) {
 				LossTolerancePercent:         0.01,
 			},
 			feeds: []testFeed{
-				{price: decimal.NewFromFloat(47750), time: time.Date(2021, 8, 20, 19, 00, 0, 0, time.UTC), expectedHooks: nil},                                                  //
-				{price: decimal.NewFromFloat(47749), time: time.Date(2021, 8, 20, 19, 00, 0, 0, time.UTC), expectedHooks: []string{"EntryTriggered", "StopLossTriggerCreated"}}, // entry: <= 47749.66910112359552936
-				{price: decimal.NewFromFloat(47272), time: time.Date(2021, 8, 20, 19, 00, 0, 0, time.UTC), expectedHooks: nil},                                                  //
-				{price: decimal.NewFromFloat(47271), time: time.Date(2021, 8, 20, 19, 00, 0, 0, time.UTC), expectedHooks: []string{"StopLossTriggered"}},                        // stop-loss: 47271.51
+				{price: decimal.NewFromFloat(47750), time: time.Date(2021, 8, 20, 19, 00, 0, 0, time.UTC), expectedHooks: nil},                                                                                 //
+				{price: decimal.NewFromFloat(47749), time: time.Date(2021, 8, 20, 19, 00, 0, 0, time.UTC), expectedHooks: []string{"EntryTriggered", "StopLossTriggerCreated", "EntryTriggerOperatorUpdated"}}, // entry: <= 47749.66910112359552936
+				{price: decimal.NewFromFloat(47272), time: time.Date(2021, 8, 20, 19, 00, 0, 0, time.UTC), expectedHooks: nil},                                                                                 //
+				{price: decimal.NewFromFloat(47271), time: time.Date(2021, 8, 20, 19, 00, 0, 0, time.UTC), expectedHooks: []string{"StopLossTriggered"}},                                                       // stop-loss: 47271.51
 
 				// even though the price comes back, it won't trigger entry order because operator has been flipped
 				{price: decimal.NewFromFloat(47272), time: time.Date(2021, 8, 20, 19, 00, 0, 0, time.UTC), expectedHooks: nil},
@@ -960,8 +964,8 @@ func TestTrendlineFlipOperatorEnabled(t *testing.T) {
 				"flip_operator_enabled":    true,
 			},
 			feeds: []testFeed{
-				{price: decimal.NewFromFloat(47750), time: time.Date(2021, 8, 20, 19, 00, 0, 0, time.UTC), expectedHooks: nil},                        //
-				{price: decimal.NewFromFloat(47749), time: time.Date(2021, 8, 20, 19, 00, 0, 0, time.UTC), expectedHooks: []string{"EntryTriggered"}}, // entry: <= 47749.66910112359552936
+				{price: decimal.NewFromFloat(47750), time: time.Date(2021, 8, 20, 19, 00, 0, 0, time.UTC), expectedHooks: nil},
+				{price: decimal.NewFromFloat(47749), time: time.Date(2021, 8, 20, 19, 00, 0, 0, time.UTC), expectedHooks: []string{"EntryTriggered", "EntryTriggerOperatorUpdated"}}, // entry: <= 47749.66910112359552936
 				{price: decimal.NewFromFloat(10000), time: time.Date(2021, 8, 20, 19, 00, 0, 0, time.UTC), expectedHooks: nil},
 				{price: decimal.NewFromFloat(100000), time: time.Date(2021, 8, 20, 19, 00, 0, 0, time.UTC), expectedHooks: nil},
 			},
@@ -994,7 +998,7 @@ func TestTrendlineFlipOperatorEnabled(t *testing.T) {
 			}},
 			feeds: []testFeed{
 				{price: decimal.NewFromFloat(45402), time: time.Date(2021, 8, 12, 7, 0, 0, 0, time.UTC), expectedHooks: nil},
-				{price: decimal.NewFromFloat(45403), time: time.Date(2021, 8, 12, 7, 0, 0, 0, time.UTC), expectedHooks: []string{"EntryTriggered", "StopLossTriggerCreated"}}, // entry: 45402.50647058823524421
+				{price: decimal.NewFromFloat(45403), time: time.Date(2021, 8, 12, 7, 0, 0, 0, time.UTC), expectedHooks: []string{"EntryTriggered", "StopLossTriggerCreated", "EntryTriggerOperatorUpdated"}}, // entry: 45402.50647058823524421
 				{price: decimal.NewFromFloat(45402), time: time.Date(2021, 8, 12, 7, 0, 0, 0, time.UTC), expectedHooks: nil},
 				{price: decimal.NewFromFloat(45857), time: time.Date(2021, 8, 12, 7, 0, 0, 0, time.UTC), expectedHooks: nil},
 				{price: decimal.NewFromFloat(45858), time: time.Date(2021, 8, 12, 7, 0, 0, 0, time.UTC), expectedHooks: []string{"StopLossTriggered"}}, // stop-loss: 45857.03 (45403*1.01)
@@ -1034,7 +1038,7 @@ func TestTrendlineFlipOperatorEnabled(t *testing.T) {
 			},
 			feeds: []testFeed{
 				{price: decimal.NewFromFloat(45402), time: time.Date(2021, 8, 12, 7, 0, 0, 0, time.UTC), expectedHooks: nil},
-				{price: decimal.NewFromFloat(45403), time: time.Date(2021, 8, 12, 7, 0, 0, 0, time.UTC), expectedHooks: []string{"EntryTriggered"}}, // entry: 45402.50647058823524421
+				{price: decimal.NewFromFloat(45403), time: time.Date(2021, 8, 12, 7, 0, 0, 0, time.UTC), expectedHooks: []string{"EntryTriggered", "EntryTriggerOperatorUpdated"}}, // entry: 45402.50647058823524421
 				{price: decimal.NewFromFloat(10000), time: time.Date(2021, 8, 12, 7, 0, 0, 0, time.UTC), expectedHooks: nil},
 				{price: decimal.NewFromFloat(100000), time: time.Date(2021, 8, 12, 7, 0, 0, 0, time.UTC), expectedHooks: nil},
 			},

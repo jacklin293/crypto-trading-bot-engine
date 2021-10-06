@@ -33,6 +33,7 @@ type Hooker interface {
 	// StopLossOrder
 	StopLossTriggered(*Contract) (bool, error)
 	EntryTrendlineTriggerUpdated(*Contract)
+	EntryTriggerOperatorUpdated(*Contract)
 
 	// TakeProfitOrder
 	TakeProfitTriggered(*Contract) error
@@ -214,6 +215,7 @@ func (c *Contract) CheckPrice(mark Mark) (halted bool, err error) {
 			//			Fix this issue by changing the operator of entry trigger
 			if c.EntryOrder.(*order.Entry).FlipOperatorEnabled {
 				c.EntryOrder.(*order.Entry).FlipOperator(c.Side)
+				c.hook.EntryTriggerOperatorUpdated(c)
 				c.EntryOrder.(*order.Entry).FlipOperatorEnabled = false
 			}
 

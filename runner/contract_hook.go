@@ -263,6 +263,11 @@ func (ch *contractHook) EntryTrendlineTriggerUpdated(c *contract.Contract) {
 	}
 }
 
+func (ch *contractHook) EntryTriggerOperatorUpdated(c *contract.Contract) {
+	text := fmt.Sprintf("[Info] '%s %s' entry trigger operator has been updated", order.TranslateSideByInt(ch.contractStrategy.Side), ch.contractStrategy.Symbol)
+	ch.notify(text)
+}
+
 // NOTE Take-profit will always halt the strategy regardless of whether err is thrown
 func (ch *contractHook) TakeProfitTriggered(c *contract.Contract) error {
 	text := fmt.Sprintf("[Take-profit] '%s %s' has been triggered", order.TranslateSideByInt(ch.contractStrategy.Side), ch.contractStrategy.Symbol)
