@@ -64,38 +64,7 @@ func (ch *contractHook) setUser(u *db.User) {
 	ch.user = u
 }
 
-// Check exchange_orders_details, halt the strategy if the data is out of sync
-func ValidateExchangeOrdersDetails(cs *db.ContractStrategy) error {
-	switch contract.Status(cs.PositionStatus) {
-	case contract.CLOSED:
-		if len(cs.ExchangeOrdersDetails) > 0 {
-			return errors.New("position status: 'CLOSED', 'exchange_orders_details' isn't empty")
-		}
-	case contract.OPENED:
-		if len(cs.ExchangeOrdersDetails) == 0 {
-			return errors.New("position status: 'OPENED', 'exchange_orders_details' is empty")
-		}
-		entryOrder, ok := cs.ExchangeOrdersDetails["entry_order"].(map[string]interface{})
-		if !ok {
-			return errors.New("position status: 'OPENED', 'exchange_orders_details.entry_order' is missing")
-		}
-		_, ok = entryOrder["size"].(string)
-		if !ok {
-			return errors.New("position status: 'OPENED', 'exchange_orders_details.entry_order.size' is missing")
-		}
-	case contract.UNKNOWN:
-		return errors.New("unknown status")
-	default:
-		return errors.New("undefined status")
-	}
-	return nil
-}
-
 func (ch *contractHook) EntryTriggered(c *contract.Contract, t time.Time, p decimal.Decimal) (decimal.Decimal, bool, error) {
-	if err := ValidateExchangeOrdersDetails(ch.contractStrategy); err != nil {
-		return p, true, err
-	}
-
 	// Make sure only one order by symbol can be triggered at once
 	// Also, from FTX doc: One websocket connection may be logged in to at most one user.
 	mutex := ch.symbolEntryTakenMutex[ch.contractStrategy.UserUuid]

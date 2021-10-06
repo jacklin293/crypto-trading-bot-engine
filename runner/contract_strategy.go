@@ -1,6 +1,7 @@
 package runner
 
 import (
+	"errors"
 	"fmt"
 	"log"
 	"runtime/debug"
@@ -193,15 +194,24 @@ func (r *ContractStrategyRunner) checkPrice(mark *contract.Mark) {
 	// NOTE For DEBUG
 	// r.logger.Println(r.ContractStrategy.Symbol, r.ContractStrategy.Uuid, mark.Time.Format("2006-01-02 15:04:05"), mark.Price)
 
+	// Make sure the data is valid
+	if err := r.validateExchangeOrdersDetails(); err != nil {
+		r.logger.Printf("[ERROR] strategy: '%s', user: '%s', symbol: '%s', positionStatus: '%s' invalid 'exchange_orders_details', err: %s\n", r.ContractStrategy.Uuid, r.ContractStrategy.UserUuid, r.ContractStrategy.Symbol, contract.TranslateStatusByInt(r.ContractStrategy.PositionStatus), err)
+		r.CheckPriceEnabled = false
+		r.handlerEventsCh.OutOfSync <- r.ContractStrategy.Uuid
+		r.handlerEventsCh.Disable <- r.ContractStrategy.Uuid
+		return
+	}
+
 	halted, err := r.contract.CheckPrice(*mark)
 	if err != nil && halted { // scenario: DB fails
 		// Stop receiving Mark
+		r.logger.Printf("[ERROR] strategy: '%s', user: '%s', symbol: '%s', positionStatus: '%s' halted with err: %s\n", r.ContractStrategy.Uuid, r.ContractStrategy.UserUuid, r.ContractStrategy.Symbol, contract.TranslateStatusByInt(r.ContractStrategy.PositionStatus), err)
 		r.CheckPriceEnabled = false
-		r.logger.Printf("[ERROR] strategy: '%s', user: '%s', symbol: '%s', positionStatus: '%s' - halted, err: %s\n", r.ContractStrategy.Uuid, r.ContractStrategy.UserUuid, r.ContractStrategy.Symbol, contract.TranslateStatusByInt(r.ContractStrategy.PositionStatus), err)
 		r.handlerEventsCh.OutOfSync <- r.ContractStrategy.Uuid
 		r.handlerEventsCh.Disable <- r.ContractStrategy.Uuid
 	} else if err != nil { // scenario: ftx api 400, still want to retry
-		r.logger.Printf("[ERROR] strategy: '%s', user: '%s', symbol: '%s', positionStatus: '%s' - err: %v\n", r.ContractStrategy.Uuid, r.ContractStrategy.UserUuid, r.ContractStrategy.Symbol, contract.TranslateStatusByInt(r.ContractStrategy.PositionStatus), err)
+		r.logger.Printf("[ERROR] strategy: '%s', user: '%s', symbol: '%s', positionStatus: '%s' err: %v\n", r.ContractStrategy.Uuid, r.ContractStrategy.UserUuid, r.ContractStrategy.Symbol, contract.TranslateStatusByInt(r.ContractStrategy.PositionStatus), err)
 
 		// Sleep a while and try again
 		time.Sleep(time.Second * 3)
@@ -218,4 +228,31 @@ func (r *ContractStrategyRunner) checkPrice(mark *contract.Mark) {
 		text := fmt.Sprintf("[Info] Don't worry! '%s %s $%s' is still alive", order.TranslateSideByInt(r.ContractStrategy.Side), r.ContractStrategy.Symbol, r.ContractStrategy.Margin)
 		go r.sender.Send(r.user.TelegramChatId, text)
 	}
+}
+
+// Check exchange_orders_details, halt the strategy if the data is out of sync
+func (r *ContractStrategyRunner) validateExchangeOrdersDetails() error {
+	switch contract.Status(r.ContractStrategy.PositionStatus) {
+	case contract.CLOSED:
+		if len(r.ContractStrategy.ExchangeOrdersDetails) > 0 {
+			return errors.New("position status: 'CLOSED', 'exchange_orders_details' isn't empty")
+		}
+	case contract.OPENED:
+		if len(r.ContractStrategy.ExchangeOrdersDetails) == 0 {
+			return errors.New("position status: 'OPENED', 'exchange_orders_details' is empty")
+		}
+		entryOrder, ok := r.ContractStrategy.ExchangeOrdersDetails["entry_order"].(map[string]interface{})
+		if !ok {
+			return errors.New("position status: 'OPENED', 'exchange_orders_details.entry_order' is missing")
+		}
+		_, ok = entryOrder["size"].(string)
+		if !ok {
+			return errors.New("position status: 'OPENED', 'exchange_orders_details.entry_order.size' is missing")
+		}
+	case contract.UNKNOWN:
+		return errors.New("unknown status")
+	default:
+		return errors.New("undefined status")
+	}
+	return nil
 }

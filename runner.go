@@ -145,6 +145,8 @@ func (h *runnerHandler) getAndSetUserMap(uuid string) (*db.User, error) {
 	return user, err
 }
 
+// NOTE Do not pass pointer of db.ContractStrategy because the last step of goroutine could be overriden by the next one in the loop
+//      and causes 2 runnes for the same strategy
 func (h *runnerHandler) startContractStrategyRunner(cs db.ContractStrategy, user *db.User) (err error) {
 	if err = h.newContractStrategyRunner(&cs, user); err != nil {
 		h.logger.Printf("[ERROR] strategy: '%s', user: '%s', symbol: '%s', err: %v\n", cs.Uuid, cs.UserUuid, cs.Symbol, err)
@@ -160,13 +162,7 @@ func (h *runnerHandler) startContractStrategyRunner(cs db.ContractStrategy, user
 	return nil
 }
 
-// NOTE Do not pass pointer of db.ContractStrategy because the last step for  goroutine could be overriden by the next one in the loop
-//      It's fine if the caller isn't in the loop. Just in case, pass by value here is safer
 func (h *runnerHandler) newContractStrategyRunner(cs *db.ContractStrategy, user *db.User) error {
-	if err := runner.ValidateExchangeOrdersDetails(cs); err != nil {
-		return fmt.Errorf("Check 'exchange_orders_details', err: %v", err)
-	}
-
 	r, err := runner.NewContractStrategyRunner(cs)
 	if err != nil {
 		return fmt.Errorf("Failed to new contract strategy runner, err: %v", err)
