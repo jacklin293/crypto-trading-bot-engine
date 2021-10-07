@@ -152,6 +152,7 @@ func (h *runnerHandler) startContractStrategyRunner(cs db.ContractStrategy, user
 		h.logger.Printf("[ERROR] strategy: '%s', user: '%s', symbol: '%s', err: %v\n", cs.Uuid, cs.UserUuid, cs.Symbol, err)
 
 		// Disable the contract strategy
+		// FIXME it's not in the map, so it didn't work
 		h.eventsCh.OutOfSync <- cs.Uuid
 		h.eventsCh.Disable <- cs.Uuid
 		return
@@ -213,7 +214,7 @@ func (h *runnerHandler) newSender() {
 func (h *runnerHandler) newExchangeUserMap(name string, user *db.User) error {
 	switch name {
 	case "FTX":
-		ex, err := exchange.NewExchange(viper.GetString("DEFAULT_EXCHANGE"), user.ExchangeApiInfo)
+		ex, err := exchange.NewExchange(viper.GetString("DEFAULT_EXCHANGE"), user.ExchangeApiKey)
 		if err != nil {
 			return fmt.Errorf("Failed to new exchange, err: %v", err)
 		}
