@@ -273,13 +273,11 @@ func (c *Contract) CheckPrice(mark Mark) (halted bool, err error) {
 				return
 			}
 
-			if c.EntryType == order.ENTRY_TRENDLINE && c.StopLossOrder != nil {
+			if c.StopLossOrder != nil && c.EntryType == order.ENTRY_TRENDLINE {
 				// Reset stop-loss trigger so when entry gets triggered won't be affected by previous stop-loss trigger
 				c.StopLossOrder.(*order.StopLoss).UnsetTrigger()
 
-				if c.StopLossOrder.(*order.StopLoss).TrendlineReadjustmentEnabled {
-					c.resetBreakoutPeak()
-				}
+				// NOTE The reason why breakout doesn't need to be reset is because breakout won't be saved into DB by ParamsUpdated
 			}
 
 			// For removing unused params
