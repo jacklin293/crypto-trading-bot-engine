@@ -16,3 +16,6 @@ ADMIN_CHAT_ID:
 
 # Exchange
 DEFAULT_EXCHANGE:
+
+# For all purpose
+AES_PRIVATE_KEY:
