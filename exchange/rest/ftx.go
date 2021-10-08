@@ -28,7 +28,7 @@ func (rest *FtxRest) NewClient(data map[string]interface{}) (err error) {
 	}
 	key := data["api_key"].(string)
 	secret := data["api_secret"].(string)
-	subaccount := data["subaccount_name"].(string)
+	subaccount := data["subaccount"].(string)
 
 	rest.client = goftx.New(
 		goftx.WithAuth(key, secret, subaccount),
@@ -48,9 +48,9 @@ func (rest *FtxRest) validate(data map[string]interface{}) error {
 	if !ok {
 		return errors.New("'api_secret' is missing")
 	}
-	_, ok = data["subaccount_name"].(string)
+	_, ok = data["subaccount"].(string)
 	if !ok {
-		return errors.New("'subaccount_name' is missing")
+		return errors.New("'subaccount' is missing")
 	}
 	return nil
 }
