@@ -9,6 +9,7 @@ import (
 	"crypto-trading-bot-engine/util/aes"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"strings"
 
@@ -67,6 +68,11 @@ func NewWsExchange(exName string) (ex WsExchanger, err error) {
 
 func validateData(exName string, encryptedAesPair string) (exData map[string]interface{}, err error) {
 	encryptedData := strings.Split(encryptedAesPair, ";")
+
+	if len(encryptedData) < 2 {
+		return exData, errors.New("invalid api key data")
+	}
+
 	iv64 := encryptedData[0]
 	data64 := encryptedData[1]
 	key, err := hex.DecodeString(viper.GetString("AES_PRIVATE_KEY"))

@@ -342,7 +342,7 @@ func (h *runnerHandler) enableContractStrategy(uuid string) {
 	// Start and new contract strategy runner
 	if err := h.startContractStrategyRunner(*cs, user); err != nil {
 		h.logger.Printf("[ERROR] enableContractStrategy strategy: '%s', user: '%s', symbol: '%s', err: %v", cs.Uuid, cs.UserUuid, cs.Symbol, err)
-		text := fmt.Sprintf("[Error] '%s %s' Internal Server Error", order.TranslateSideByInt(cs.Side), cs.Symbol)
+		text := fmt.Sprintf("[Error] '%s %s' Internal Server Error. Please disable your strategy", order.TranslateSideByInt(cs.Side), cs.Symbol)
 		go h.sender.Send(user.TelegramChatId, text)
 		return
 	}
