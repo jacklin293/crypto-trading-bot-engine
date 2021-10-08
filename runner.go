@@ -355,7 +355,7 @@ func (h *runnerHandler) enableContractStrategy(uuid string) {
 func (h *runnerHandler) disableContractStrategy(uuid string) {
 	r, ok := h.runnerByUuidMap.Load(uuid)
 	if !ok {
-		h.logger.Printf("[Error] events.Disable - strategy '%s' isn't in the map", uuid)
+		h.logger.Printf("[Error] disableContractStrategyCh - strategy '%s' isn't in the map", uuid)
 		return
 	}
 
