@@ -268,10 +268,27 @@ func (c *Contract) CheckPrice(mark Mark) (halted bool, err error) {
 		if c.TakeProfitOrder != nil && c.TakeProfitOrder.IsTriggered(mark.Time, mark.Price) {
 			// Take-profit order is triggered
 			c.Status = CLOSED
-			err = c.hook.TakeProfitTriggered(c)
 			halted = true
+			if err = c.hook.TakeProfitTriggered(c); err != nil {
+				return
+			}
 
-			return
+			if c.EntryType == order.ENTRY_TRENDLINE && c.StopLossOrder != nil {
+				// Reset stop-loss trigger so when entry gets triggered won't be affected by previous stop-loss trigger
+				c.StopLossOrder.(*order.StopLoss).UnsetTrigger()
+
+				if c.StopLossOrder.(*order.StopLoss).TrendlineReadjustmentEnabled {
+					c.resetBreakoutPeak()
+				}
+			}
+
+			// For removing unused params
+			if halted, err = c.hook.ParamsUpdated(c); err != nil || halted {
+				return
+			}
+
+			// NOTE Make sure it returns `halted` as `true`
+			return true, nil
 		}
 	case UNKNOWN:
 		return true, errors.New("unknown status")
