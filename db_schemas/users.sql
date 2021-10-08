@@ -31,6 +31,7 @@ CREATE TABLE `users` (
   `password_expired_at` datetime DEFAULT NULL COMMENT 'Password expiry time',
   `exchange_api_key` text DEFAULT '' COMMENT 'Exchange API Key',
   `activated` tinyint(4) NOT NULL DEFAULT 1 COMMENT '0: inactivated 1: activated',
+  `role` tinyint(3) unsigned NOT NULL DEFAULT 0 COMMENT 'Role (0: general user, 99: admin)',
   `last_login_at` datetime DEFAULT NULL COMMENT 'Last login time',
   `created_at` datetime NOT NULL DEFAULT current_timestamp() COMMENT 'Create time',
   `updated_at` datetime NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp() COMMENT 'Last update time',
@@ -49,4 +50,4 @@ CREATE TABLE `users` (
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2021-10-08  0:39:23
+-- Dump completed on 2021-10-09  1:01:11

@@ -11,6 +11,7 @@ type User struct {
 	Username       string
 	ExchangeApiKey string // {"FTX":{"api_key":"", "api_secret": "", "subaccount": ""}}
 	Activated      int64
+	Role           int64 // 0: general user, 99: admin
 	LastLoginAt    time.Time
 	CreatedAt      time.Time
 	UpdatedAt      time.Time
