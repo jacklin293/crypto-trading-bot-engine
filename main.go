@@ -2,9 +2,8 @@ package main
 
 import (
 	"crypto-trading-bot-engine/db"
+	"crypto-trading-bot-engine/util/logger"
 	"fmt"
-	"log"
-	"os"
 
 	"github.com/spf13/viper"
 )
@@ -13,14 +12,14 @@ func main() {
 	// Read config
 	loadConfig()
 
+	// logger
+	l := logger.NewLogger(viper.GetString("ENV"), viper.GetString("LOG_PATH"))
+
 	// Connect to DB
 	db, err := db.NewDB(viper.GetString("DB_DSN"))
 	if err != nil {
-		log.Fatal(err)
+		l.Fatal(err)
 	}
-
-	// logger
-	l := log.New(os.Stdout, "", log.LstdFlags|log.Lshortfile)
 
 	// runner
 	rh := newRunnerHandler(l)
