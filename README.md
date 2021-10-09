@@ -86,3 +86,21 @@ http://localhost:8080/
   }
 }
 ```
+
+# Deploy
+
+follow this to install docker: https://www.simplilearn.com/tutorials/docker-tutorial/how-to-install-docker-on-ubuntu
+
+install docker-compose
+
+    sudo curl -L "https://github.com/docker/compose/releases/download/1.27.4/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
+    sudo chmod +x /usr/local/bin/docker-compose
+
+Install db and phpmyadmin
+
+* Copy docker-compose.yml from local and build
+
+Run
+
+    make deploy
+    scp .config.yml.template fomobot:~/app/engine/config.yml
