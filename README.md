@@ -86,3 +86,7 @@ http://localhost:8080/
   }
 }
 ```
+
+# Deploy
+
+    make deploy
