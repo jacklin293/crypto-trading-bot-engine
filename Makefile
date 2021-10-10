@@ -11,3 +11,4 @@ deploy:
 	env GOOS=linux GOARCH=amd64 go build -o prod-engine
 	rsync -av -e ssh prod-engine fomobot:/home/fomobot/app/fomobot-engine/
 	rm prod-engine
+	ssh -t fomobot "sudo systemctl restart fomobot-engine"
