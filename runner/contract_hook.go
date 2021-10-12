@@ -114,8 +114,16 @@ func (ch *contractHook) EntryTriggered(c *contract.Contract, t time.Time, p deci
 	ch.notify(text)
 
 	// Update data for orders info
+	// NOTE orderInfo can't be trusted entirely, because FTX might split the order into several ones until the requested size gets filled totally, especially when the size is big
+	//      The problem is that it returns the order info of the last one it fills and the size would be much smaller, so use the requested size instead of the one from order info
 	exchangeOrdersDetails := datatypes.JSONMap{
-		"entry_order": orderInfo,
+		"entry_order": map[string]interface{}{
+			"fee_rate": orderInfo["fee_rate"],
+			"order_id": orderInfo["order_id"],
+			"price":    orderInfo["price"],
+			"size":     size.String(),
+			"time":     orderInfo["time"],
+		},
 	}
 
 	// For memory data
