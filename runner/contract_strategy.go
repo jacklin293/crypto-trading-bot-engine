@@ -60,8 +60,8 @@ type ContractStrategyRunner struct {
 	// Check mark price once a time
 	ignoreIncomingMark bool
 
-	// Alive notification
-	lastAliveNotificationTime time.Time
+	// Last time the price being checked
+	LastPriceCheckedTime time.Time
 }
 
 func NewContractStrategyRunner(cs *db.ContractStrategy) (*ContractStrategyRunner, error) {
@@ -78,13 +78,12 @@ func NewContractStrategyRunner(cs *db.ContractStrategy) (*ContractStrategyRunner
 	c.SetStatus(contract.Status(cs.PositionStatus))
 
 	s := &ContractStrategyRunner{
-		ContractStrategy:          cs,
-		contract:                  c,
-		contractHook:              ch,
-		StopCh:                    make(chan bool),
-		MarkCh:                    make(chan contract.Mark),
-		CheckPriceEnabled:         true,
-		lastAliveNotificationTime: time.Now(), // Don't send when it just launches
+		ContractStrategy:  cs,
+		contract:          c,
+		contractHook:      ch,
+		StopCh:            make(chan bool),
+		MarkCh:            make(chan contract.Mark),
+		CheckPriceEnabled: true,
 	}
 	return s, err
 }
@@ -222,12 +221,7 @@ func (r *ContractStrategyRunner) checkPrice(mark *contract.Mark) {
 		r.handlerEventsCh.Reset <- r.ContractStrategy.Uuid
 	}
 
-	// Send 'alive' message after a period of time
-	if time.Now().After(r.lastAliveNotificationTime.Add(time.Minute * time.Duration(ALIVE_NOTIFICATION_INTERVAL))) {
-		r.lastAliveNotificationTime = time.Now()
-		text := fmt.Sprintf("[Info] Don't worry! '%s %s $%s' is still alive", order.TranslateSideByInt(r.ContractStrategy.Side), r.ContractStrategy.Symbol, r.ContractStrategy.Margin)
-		go r.sender.Send(r.user.TelegramChatId, text)
-	}
+	r.LastPriceCheckedTime = time.Now()
 }
 
 // Check exchange_orders_details, halt the strategy if the data is out of sync

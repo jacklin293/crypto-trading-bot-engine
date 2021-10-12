@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"crypto-trading-bot-engine/runner"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -96,14 +97,14 @@ func (h *httpHandler) show(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *httpHandler) list(w http.ResponseWriter, r *http.Request) {
-	var uuids []string
-	h.runnerHandler.runnerByUuidMap.Range(func(key, _ interface{}) bool {
-		uuids = append(uuids, key.(string))
+	list := make(map[string]string)
+	h.runnerHandler.runnerByUuidMap.Range(func(key, r interface{}) bool {
+		list[key.(string)] = r.(*runner.ContractStrategyRunner).LastPriceCheckedTime.Format("2006-01-02 15:04:05")
 		return true
 	})
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(uuids)
+	json.NewEncoder(w).Encode(list)
 }
 
 func (h *httpHandler) event(w http.ResponseWriter, r *http.Request) {
