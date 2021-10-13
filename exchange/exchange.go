@@ -20,15 +20,15 @@ import (
 type Exchanger interface {
 	NewClient(map[string]interface{}) error
 	GetAccountInfo() (map[string]interface{}, error)
-	PlaceEntryOrder(string, order.Side, decimal.Decimal) (int64, error)
+	PlaceEntryOrder(string, order.Side, decimal.Decimal) error
 	PlaceStopLossOrder(string, order.Side, decimal.Decimal, decimal.Decimal) (int64, error)
 	RetryPlaceStopLossOrder(string, order.Side, decimal.Decimal, decimal.Decimal, int64, int64) (int64, error)
-	GetPosition(int64) (map[string]interface{}, int64, error)
-	RetryGetPosition(int64, int64, int64) (map[string]interface{}, int64, error)
-	ClosePosition(string, order.Side, decimal.Decimal) (int64, error)
-	RetryClosePosition(string, order.Side, decimal.Decimal, int64, int64) (int64, error)
+	ClosePosition(string, order.Side, decimal.Decimal) error
+	RetryClosePosition(string, order.Side, decimal.Decimal, int64, int64) error
 	CancelOpenTriggerOrder(int64) error
 	RetryCancelOpenTriggerOrder(int64, int64, int64) error
+	GetPosition(string) (map[string]interface{}, error)
+	RetryGetPosition(string, int64, int64) (map[string]interface{}, error)
 }
 
 type WsExchanger interface {

@@ -10,7 +10,6 @@ import (
 	"errors"
 	"fmt"
 	"log"
-	"strings"
 	"sync"
 	"time"
 
@@ -86,55 +85,41 @@ func (ch *contractHook) EntryTriggered(c *contract.Contract, t time.Time, p deci
 	}
 
 	// Calculate the size
-	size := ch.contractStrategy.Margin.Div(p)
+	size := ch.contractStrategy.Margin.DivRound(p, 8)
 
 	// Place entry order
-	orderId, err := ch.exchange.PlaceEntryOrder(ch.contractStrategy.Symbol, order.Side(ch.contractStrategy.Side), size)
-	if err != nil {
+	if err = ch.exchange.PlaceEntryOrder(ch.contractStrategy.Symbol, order.Side(ch.contractStrategy.Side), size); err != nil {
 		text := fmt.Sprintf("[Error] Failed to place entry order, err: %v", err)
 		ch.notify(text)
 		return p, false, fmt.Errorf("EntryTriggered - failed to place entry order, err: %v", err)
 	}
 
 	// Check position - retyr 30 times, interval 2 secs
-	orderInfo, count, err := ch.exchange.RetryGetPosition(orderId, 30, 2)
+	// TODO try every second until size isn't 0
+	positionInfo, err := ch.exchange.RetryGetPosition(ch.contractStrategy.Symbol, 30, 2)
 	if err != nil {
 		text := fmt.Sprintf("[Error] Failed to get open position, err: %v", err)
 		ch.notify(text)
 		return p, true, fmt.Errorf("EntryTriggered - failed to get open position, err: %v", err)
 	}
-	if count == 0 {
-		text := fmt.Sprint("[Warn] Entry order has been placed, but can't find any open position. please check and reset your position and order")
-		ch.notify(text)
-		return p, true, fmt.Errorf("EntryTriggered - entry order has been placed, but can't find any open position")
+	if positionInfo["size"].(string) == "0" {
+		ch.notify("[Error] Failed to get open position, size is zero")
+		return p, true, errors.New("EntryTriggered - failed to get open position, size is zero")
 	}
 
 	// Notification
-	text = fmt.Sprintf("[Entry] '%s %s' has been triggered @%s (margin: $%s, fee: $%.1f)", order.TranslateSideByInt(ch.contractStrategy.Side), ch.contractStrategy.Symbol, orderInfo["price"].(string), ch.contractStrategy.Margin.StringFixed(0), orderInfo["fee"].(float64))
+	text = fmt.Sprintf("[Entry] '%s %s $%s' has been triggered @%s", order.TranslateSideByInt(ch.contractStrategy.Side), ch.contractStrategy.Symbol, ch.contractStrategy.Margin.StringFixed(0), positionInfo["entry_price"].(string))
 	ch.notify(text)
-
-	// Update data for orders info
-	// NOTE orderInfo can't be trusted entirely, because FTX might split the order into several ones until the requested size gets filled totally, especially when the size is big
-	//      The problem is that it returns the order info of the last one it fills and the size would be much smaller, so use the requested size instead of the one from order info
-	exchangeOrdersDetails := datatypes.JSONMap{
-		"entry_order": map[string]interface{}{
-			"fee_rate": orderInfo["fee_rate"],
-			"order_id": orderInfo["order_id"],
-			"price":    orderInfo["price"],
-			"size":     size.String(),
-			"time":     orderInfo["time"],
-		},
-	}
 
 	// For memory data
 	ch.contractStrategy.PositionStatus = int64(contract.OPENED)
-	ch.contractStrategy.ExchangeOrdersDetails = exchangeOrdersDetails
-	ch.contractStrategy.LastPositionAt = orderInfo["time"].(time.Time)
+	ch.contractStrategy.ExchangeOrdersDetails = datatypes.JSONMap{"entry_order": positionInfo}
+	ch.contractStrategy.LastPositionAt = time.Now()
 
 	// For DB
 	contractStrategy := map[string]interface{}{
-		"position_status":         int64(contract.OPENED),
-		"exchange_orders_details": exchangeOrdersDetails,
+		"position_status":         ch.contractStrategy.PositionStatus,
+		"exchange_orders_details": ch.contractStrategy.ExchangeOrdersDetails,
 		"last_position_at":        ch.contractStrategy.LastPositionAt,
 	}
 	_, err = ch.db.UpdateContractStrategy(ch.contractStrategy.Uuid, contractStrategy)
@@ -144,7 +129,7 @@ func (ch *contractHook) EntryTriggered(c *contract.Contract, t time.Time, p deci
 		return p, true, fmt.Errorf("EntryTriggered - failed to update 'exchange_orders_details', err: %v", err)
 	}
 
-	entryPrice, err := decimal.NewFromString(orderInfo["price"].(string))
+	entryPrice, err := decimal.NewFromString(positionInfo["entry_price"].(string))
 	if err != nil {
 		text := fmt.Sprintf("[Error] '%s %s' Internal Server Error. Please check and reset your position and order", order.TranslateSideByInt(ch.contractStrategy.Side), ch.contractStrategy.Symbol)
 		ch.notify(text)
@@ -201,39 +186,8 @@ func (ch *contractHook) StopLossTriggered(c *contract.Contract) (bool, error) {
 	text := fmt.Sprintf("[Stop-loss] '%s %s' has been triggered", order.TranslateSideByInt(ch.contractStrategy.Side), ch.contractStrategy.Symbol)
 	ch.notify(text)
 
-	orderInfo, err := ch.closeOpenPosition(false)
-	if err != nil {
-		// The error indicates that the position has been closed already
-		if !strings.Contains(err.Error(), "Invalid reduce-only order") {
-			return true, fmt.Errorf("StopLossTriggered - failed to close position, err: %v", err)
-		}
-		// NOTE position has been closed by FTX
-		text := fmt.Sprintf("[Stop-loss] '%s %s' position has been closed by stop-loss trigger order", order.TranslateSideByInt(ch.contractStrategy.Side), ch.contractStrategy.Symbol)
-		ch.notify(text)
-	}
-
-	// Cancel trigger if not triggered yet
-	var stopLossOrderId float64
-	orderInfo, ok := ch.contractStrategy.ExchangeOrdersDetails["stop_loss_order"].(map[string]interface{})
-	if ok {
-		stopLossOrderId, ok = orderInfo["order_id"].(float64)
-		if !ok {
-			text := fmt.Sprintf("[Error] '%s %s' Internal Server Error. Please check and reset your position and order", order.TranslateSideByInt(ch.contractStrategy.Side), ch.contractStrategy.Symbol)
-			ch.notify(text)
-			return true, fmt.Errorf("StopLossTriggered - stop-loss 'order_id' is missing")
-		}
-		if err = ch.exchange.RetryCancelOpenTriggerOrder(int64(stopLossOrderId), 20, 2); err != nil {
-			if !strings.Contains(err.Error(), "Order already closed") {
-				text = fmt.Sprintf("[Error] Failed to cancel %s stop-loss order, err: %v", ch.contractStrategy.Symbol, err)
-				ch.notify(text)
-				return true, err
-			}
-			// NOTE stop-loss trigger order has been closed by FTX
-		}
-	} else {
-		text := fmt.Sprintf("[Error] '%s %s' Internal Server Error. Please check and reset your position and order", order.TranslateSideByInt(ch.contractStrategy.Side), ch.contractStrategy.Symbol)
-		ch.notify(text)
-		return true, fmt.Errorf("StopLossTriggered - stop-loss 'stop_loss_order' is missing")
+	if err := ch.closePosition(); err != nil {
+		return true, fmt.Errorf("StopLossTriggered - failed to close position, err: %v", err)
 	}
 
 	// Reset status and exchange_orders_details
@@ -241,7 +195,7 @@ func (ch *contractHook) StopLossTriggered(c *contract.Contract) (bool, error) {
 		"position_status":         int64(contract.CLOSED),
 		"exchange_orders_details": datatypes.JSONMap{},
 	}
-	_, err = ch.db.UpdateContractStrategy(ch.contractStrategy.Uuid, contractStrategy)
+	_, err := ch.db.UpdateContractStrategy(ch.contractStrategy.Uuid, contractStrategy)
 	if err != nil {
 		text := fmt.Sprintf("[Error] '%s %s' Internal Server Error. Please check and reset your position and order", order.TranslateSideByInt(ch.contractStrategy.Side), ch.contractStrategy.Symbol)
 		ch.notify(text)
@@ -284,8 +238,7 @@ func (ch *contractHook) TakeProfitTriggered(c *contract.Contract) error {
 	// Update memory data
 	ch.contractStrategy.Enabled = 0
 
-	// NOTE Update DB data by event channel
-	// Let the caller to decide whether it should be reset by returning `halted` and `err`
+	// NOTE DB data will be updated via event channel
 	return ch.closePosition()
 }
 
@@ -345,23 +298,35 @@ func (ch *contractHook) BreakoutPeakUpdated(c *contract.Contract) {
 	}
 }
 
-// Let the caller to decide whether it should be reset by returning `halted` and `err`
 func (ch *contractHook) closePosition() error {
 	var text string
 
-	orderInfo, err := ch.closeOpenPosition(true)
+	closedAlready, err := ch.closeOpenPosition()
 	if err != nil {
-		return fmt.Errorf("closePosition > %v", err)
+		return fmt.Errorf("closePosition err: %v", err)
+	}
+	if closedAlready {
+		text = fmt.Sprintf("[Info] '%s %s' position have been closed already", order.TranslateSideByInt(ch.contractStrategy.Side), ch.contractStrategy.Symbol)
+		ch.notify(text)
+		return nil
+	} else {
+		// Notification
+		text = fmt.Sprintf("[Info] '%s %s' position has been closed successfully", order.TranslateSideByInt(ch.contractStrategy.Side), ch.contractStrategy.Symbol)
+		ch.notify(text)
 	}
 
 	// Cancel stop-loss order if exists
 	// It's possible that there is no order_id for stop-loss order that will happen when the position has been opened but something went wrong before stop-loss order is created
-	var stopLossOrderId int64
 	orderInfo, ok := ch.contractStrategy.ExchangeOrdersDetails["stop_loss_order"].(map[string]interface{})
 	if ok {
-		stopLossOrderId = int64(orderInfo["order_id"].(float64))
-		err = ch.exchange.RetryCancelOpenTriggerOrder(stopLossOrderId, 20, 2)
-		if err != nil {
+		tmpId, ok := orderInfo["order_id"].(float64)
+		if !ok {
+			text := fmt.Sprintf("[Error] '%s %s' Internal Server Error. Please check and reset your position and order", order.TranslateSideByInt(ch.contractStrategy.Side), ch.contractStrategy.Symbol)
+			ch.notify(text)
+			return fmt.Errorf("closePosition - stop_loss_order.order_id is missing")
+		}
+		stopLossOrderId := int64(tmpId)
+		if err = ch.exchange.RetryCancelOpenTriggerOrder(stopLossOrderId, 20, 2); err != nil {
 			text = fmt.Sprintf("[Error] Failed to cancel %s stop-loss order, err: %v", ch.contractStrategy.Symbol, err)
 			ch.notify(text)
 			return err
@@ -374,45 +339,41 @@ func (ch *contractHook) closePosition() error {
 	return nil
 }
 
-func (ch *contractHook) closeOpenPosition(reportIfFailed bool) (map[string]interface{}, error) {
-	var text string
-
-	// Close position
-	size, err := decimal.NewFromString(ch.contractStrategy.ExchangeOrdersDetails["entry_order"].(map[string]interface{})["size"].(string))
+// When closed is true, it means that it might have been closed by stop-loss trigger order by FTX
+func (ch *contractHook) closeOpenPosition() (closed bool, err error) {
+	// Get size from open position
+	positionInfo, err := ch.exchange.RetryGetPosition(ch.contractStrategy.Symbol, 30, 2)
 	if err != nil {
-		text := fmt.Sprintf("[Error] '%s %s' Internal Server Error. Please check and reset your position and order", order.TranslateSideByInt(ch.contractStrategy.Side), ch.contractStrategy.Symbol)
-		ch.notify(text)
-		return map[string]interface{}{}, fmt.Errorf("closeOpenPosition - failed to convert 'size' from order info, err: %v", err)
+		return false, fmt.Errorf("closeOpenPosition - failed to get open position, err: %v", err)
 	}
 
-	orderId, err := ch.exchange.RetryClosePosition(ch.contractStrategy.Symbol, order.Side(ch.contractStrategy.Side), size, 30, 2)
+	// If size is zero, it means that it might be closed already
+	if positionInfo["size"].(string) == "0" {
+		return true, nil
+	}
+	size, err := decimal.NewFromString(positionInfo["size"].(string))
 	if err != nil {
+		return false, fmt.Errorf("closeOpenPosition - failed to convert size, err: %v", err)
+	}
+
+	// Close position
+	if err := ch.exchange.RetryClosePosition(ch.contractStrategy.Symbol, order.Side(ch.contractStrategy.Side), size, 30, 2); err != nil {
 		// position could be closed by stop-loss trigger order, it's fine for caller `StopLossTriggered`
-		if reportIfFailed {
-			text = fmt.Sprintf("[Error] %s %s - failed to close position, please check and reset your position and order, err: %v", order.TranslateSideByInt(ch.contractStrategy.Side), ch.contractStrategy.Symbol, err)
-			ch.notify(text)
-		}
-		return map[string]interface{}{}, fmt.Errorf("closeOpenPosition - failed to close position, err: %v", err)
+		return false, fmt.Errorf("closeOpenPosition - failed to close position, err: %v", err)
 	}
 
 	// Check position
-	orderInfo, count, err := ch.exchange.RetryGetPosition(orderId, 30, 2)
+	// TODO try every second until size is 0
+	positionInfo, err = ch.exchange.RetryGetPosition(ch.contractStrategy.Symbol, 30, 2)
 	if err != nil {
-		text := fmt.Sprintf("[Error] Failed to get position from the position just opened, err: %v", err)
-		ch.notify(text)
-		return map[string]interface{}{}, fmt.Errorf("closeOpenPosition - failed to get position, err: %v", err)
+		return false, fmt.Errorf("closeOpenPosition - failed to get open position, err: %v", err)
 	}
-	if count == 0 {
-		text := fmt.Sprint("[Warn] Not sure whether the position has been closed. please check and reset your position and order")
-		ch.notify(text)
-		return map[string]interface{}{}, errors.New("closeOpenPosition - no position was found")
+	if positionInfo["size"].(string) != "0" {
+		ch.logger.Println("closeOpenPosition - failed to close position, size is not zero")
+		return false, errors.New("failed to close position, size is not zero")
 	}
 
-	// Notification
-	text = fmt.Sprintf("[Info] '%s %s' position has been closed @%s (fee: $%.1f)", order.TranslateSideByInt(ch.contractStrategy.Side), ch.contractStrategy.Symbol, orderInfo["price"].(string), orderInfo["fee"].(float64))
-	ch.notify(text)
-
-	return orderInfo, nil
+	return false, nil
 }
 
 func (ch *contractHook) notify(text string) {

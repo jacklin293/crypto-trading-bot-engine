@@ -3,6 +3,7 @@ package rest
 import (
 	"crypto-trading-bot-engine/strategy/order"
 	"errors"
+	"fmt"
 	"log"
 	"net/http"
 	"strings"
@@ -71,17 +72,14 @@ func (rest *FtxRest) GetAccountInfo() (map[string]interface{}, error) {
 	return r, nil
 }
 
-func (rest *FtxRest) PlaceEntryOrder(symbol string, side order.Side, size decimal.Decimal) (int64, error) {
-	order, err := rest.client.Orders.PlaceOrder(&models.PlaceOrderPayload{
+func (rest *FtxRest) PlaceEntryOrder(symbol string, side order.Side, size decimal.Decimal) error {
+	_, err := rest.client.Orders.PlaceOrder(&models.PlaceOrderPayload{
 		Market: symbol,
 		Side:   rest.translateSide(side),
 		Type:   models.MarketOrder,
 		Size:   size,
 	})
-	if err != nil {
-		return 0, err
-	}
-	return order.ID, nil
+	return err
 }
 
 func (rest *FtxRest) PlaceStopLossOrder(symbol string, side order.Side, price decimal.Decimal, size decimal.Decimal) (int64, error) {
@@ -121,79 +119,85 @@ func (rest *FtxRest) RetryPlaceStopLossOrder(symbol string, side order.Side, pri
 	return
 }
 
-// NOTE There is no way to check if position has been closed or not
-//      This function can't be used to check position status, it only returns the same data when it is created
-func (rest *FtxRest) GetPosition(orderId int64) (r map[string]interface{}, count int64, err error) {
-	r = make(map[string]interface{})
-	fills, err := rest.client.Fills.GetFills(&models.GetFillsParams{
-		OrderID: &orderId,
-	})
-	count = int64(len(fills))
+// &{
+//		Cost:78.66075
+//		EntryPrice:52.4405
+//		EstimatedLiquidationPrice:0
+//		Future:FTT-PERP				// string, other fields are all decimal.Decimal
+//		InitialMarginRequirement:0.2
+//		LongOrderSize:0
+//		MaintenanceMarginRequirement:0.03
+//		NetSize:1.5
+//		OpenSize:1.5
+//		RealizedPnl:-4.87398562
+//		ShortOrderSize:0
+//		Side:buy					// string
+//		Size:1.5
+//		UnrealizedPnl:0
+//		CollateralUsed:15.73215
+// }
+func (rest *FtxRest) GetPosition(symbol string) (map[string]interface{}, error) {
+	p := make(map[string]interface{})
+	positions, err := rest.client.Account.GetPositions()
 	if err != nil {
-		return
+		return p, err
 	}
-	for _, f := range fills {
-		if f.OrderID == orderId {
-			// NOTE the reason why to convert type is for making them more consistent when they are retrieved from DB
-			//      , as int64 will be turned into float64 after it was unmarshelled
-			r["fee"] = f.Fee                   // float64
-			r["fee_rate"] = f.FeeRate          // float64
-			r["order_id"] = float64(f.OrderID) // original: int64
-			r["price"] = f.Price.String()      // original: decimal.Decimal
-			r["size"] = f.Size.String()        // original: decimal.Decimal
-			r["time"] = f.Time.Time
-			return
+
+	for _, position := range positions {
+		if position.Future == symbol {
+			p["cost"] = position.Cost.Abs().String() // make number positive no matter it's long or short
+			p["entry_price"] = position.EntryPrice.String()
+			p["size"] = position.Size.String()
+			p["symbol"] = position.Future
+			switch models.Side(position.Side) {
+			case models.Buy:
+				p["side"] = float64(order.LONG)
+			case models.Sell:
+				p["side"] = float64(order.SHORT)
+			default:
+				return p, fmt.Errorf("side '%s' not supported", position.Side)
+			}
+			return p, err
 		}
 	}
-	return
+	return p, fmt.Errorf("failed to get %s position", symbol)
 }
 
-// retry: retry times
-// interval: sleep seconds
-func (rest *FtxRest) RetryGetPosition(orderId int64, retry int64, interval int64) (r map[string]interface{}, count int64, err error) {
+func (rest *FtxRest) RetryGetPosition(symbol string, retry int64, interval int64) (p map[string]interface{}, err error) {
 	for i := int64(0); i <= retry; i++ {
-		r, count, err = rest.GetPosition(orderId)
+		p, err = rest.GetPosition(symbol)
 		if err != nil {
-			if rest.ignoreError(err) {
+			if strings.Contains(err.Error(), "wrong side") {
 				break
 			}
 			log.Println("RetryGetPosition err:", err)
 			time.Sleep(time.Second * time.Duration(interval))
 			continue
 		}
-		if count == 0 {
-			time.Sleep(time.Second * time.Duration(interval))
-			continue
-		}
-		// success
 		break
 	}
 	return
 }
 
-func (rest *FtxRest) ClosePosition(symbol string, side order.Side, size decimal.Decimal) (int64, error) {
+func (rest *FtxRest) ClosePosition(symbol string, side order.Side, size decimal.Decimal) error {
 	reduceOnly := true
-	order, err := rest.client.Orders.PlaceOrder(&models.PlaceOrderPayload{
+	_, err := rest.client.Orders.PlaceOrder(&models.PlaceOrderPayload{
 		Market:     symbol,
 		Side:       rest.translateAndFlipSide(side),
 		Type:       models.MarketOrder,
 		Size:       size,
 		ReduceOnly: &reduceOnly,
 	})
-	if err != nil {
-		return 0, err
-	}
-	return order.ID, nil
+	return err
 }
 
-func (rest *FtxRest) RetryClosePosition(symbol string, side order.Side, size decimal.Decimal, retry int64, interval int64) (orderId int64, err error) {
+func (rest *FtxRest) RetryClosePosition(symbol string, side order.Side, size decimal.Decimal, retry int64, interval int64) (err error) {
 	for i := int64(0); i <= retry; i++ {
-		orderId, err = rest.ClosePosition(symbol, side, size)
-		if err != nil {
+		if err = rest.ClosePosition(symbol, side, size); err != nil {
 			if rest.ignoreError(err) {
 				break
 			}
-			log.Println("RetryClosePosition err:", err)
+			log.Printf("RetryClosePosition err: %v", err)
 			time.Sleep(time.Second * time.Duration(interval))
 			continue
 		}
@@ -251,9 +255,10 @@ func (rest *FtxRest) ignoreError(err error) bool {
 
 	// Scenario: try to get an open position that has been closed already
 	// Reproduction: get entry_order triggered, then sleep 30s, close position manually on app during this 30s, then get position
-	if strings.Contains(err.Error(), "Invalid reduce-only order") {
-		return true
-	}
+	// NOTE: update: found that it could be thrown for other unknow reason
+	// if strings.Contains(err.Error(), "Invalid reduce-only order") {
+	//	return true
+	// }
 
 	// Scenario: try to get an open trigger order that has been closed
 	// Reproduction: get stop-loss order created, then sleep 30s, close order manually on app during this 30s, then get trigger order
