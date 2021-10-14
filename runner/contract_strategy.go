@@ -239,7 +239,7 @@ func (r *ContractStrategyRunner) validateExchangeOrdersDetails() error {
 		if !ok {
 			return errors.New("position status: 'OPENED', 'exchange_orders_details.entry_order' is missing")
 		}
-		_, ok = entryOrder["order_id"].(string)
+		_, ok = entryOrder["order_id"]
 		if !ok {
 			return errors.New("position status: 'OPENED', 'exchange_orders_details.entry_order.order_id' is missing")
 		}
