@@ -72,14 +72,17 @@ func (rest *FtxRest) GetAccountInfo() (map[string]interface{}, error) {
 	return r, nil
 }
 
-func (rest *FtxRest) PlaceEntryOrder(symbol string, side order.Side, size decimal.Decimal) error {
-	_, err := rest.client.Orders.PlaceOrder(&models.PlaceOrderPayload{
+func (rest *FtxRest) PlaceEntryOrder(symbol string, side order.Side, size decimal.Decimal) (int64, error) {
+	order, err := rest.client.Orders.PlaceOrder(&models.PlaceOrderPayload{
 		Market: symbol,
 		Side:   rest.translateSide(side),
 		Type:   models.MarketOrder,
 		Size:   size,
 	})
-	return err
+	if err != nil {
+		return 0, err
+	}
+	return order.ID, err
 }
 
 func (rest *FtxRest) PlaceStopLossOrder(symbol string, side order.Side, price decimal.Decimal, size decimal.Decimal) (int64, error) {
@@ -275,38 +278,51 @@ func (rest *FtxRest) ignoreError(err error) bool {
 	return false
 }
 
-/*
-No need?
-func (rest *FtxRest) OpenStopTriggerOrderExists(symbol string, orderId int64) (existed bool, err error) {
-	t := models.Stop
-	orders, err := rest.client.Orders.GetOpenTriggerOrders(&models.GetOpenTriggerOrdersParams{
-		Market: &symbol,
-		Type:   &t,
-	})
-	if err != nil {
-		return false, nil
-	}
-	for _, order := range orders {
-		if order.ID == orderId {
-			return true, nil
-		}
-	}
-	return false, nil
-}
-
-func (rest *FtxRest) CancelOrder(orderId int64) error {
-	return rest.client.Orders.CancelOrder(orderId)
-}
-
-func (rest *FtxRest) RetryCancelOrder(orderId int64, retry int64, interval int64) (err error) {
-	for i := int64(0); i <= retry; i++ {
-		err = rest.client.Orders.CancelOrder(orderId)
-		if err != nil {
-			time.Sleep(time.Second * time.Duration(interval))
-			continue
-		}
-		break
-	}
-	return
-}
-*/
+// NOTE This function can't be used to check position status, it only returns the same data when it is created
+//      FTX API won't return completed filled data
+// func (rest *FtxRest) GetFill(orderId int64) (r map[string]interface{}, err error) {
+//	r = make(map[string]interface{})
+//	// NOTE This endpoint only returns the data that the last order gets filled, which means that it can't be used for
+//	//      getting complete filled size
+//	fills, err := rest.client.Fills.GetFills(&models.GetFillsParams{
+//		OrderID: &orderId,
+//	})
+//	if err != nil {
+//		return
+//	}
+//	for _, f := range fills {
+//		if f.OrderID == orderId {
+//			// NOTE the reason why to convert type is for making them more consistent when they are retrieved from DB
+//			//      , as int64 will be turned into float64 after it was unmarshelled
+//			r["fee_rate"] = f.FeeRate          // float64
+//			r["order_id"] = float64(f.OrderID) // original: int64
+//			r["price"] = f.Price.String()      // original: decimal.Decimal
+//			r["time"] = f.Time.Time
+//
+//			// NOTE They could be from the last filled order, so the data can't be trusted
+//			// r["fee"] = f.Fee                   // float64
+//			// r["size"] = f.Size.String()        // original: decimal.Decimal
+//			return
+//		}
+//	}
+//	return
+// }
+//
+// func (rest *FtxRest) RetryGetFill(orderId int64, retry int64, interval int64) (r map[string]interface{}, err error) {
+//	for i := int64(0); i <= retry; i++ {
+//		r, err = rest.GetFill(orderId)
+//		if err != nil {
+//			log.Println("RetryGetFill err:", err)
+//			time.Sleep(time.Second * time.Duration(interval))
+//			continue
+//		}
+//		if len(r) == 0 {
+//			log.Println("RetryGetFill order_id not matched")
+//			time.Sleep(time.Second * time.Duration(interval))
+//			continue
+//		}
+//		// success
+//		break
+//	}
+//	return
+// }

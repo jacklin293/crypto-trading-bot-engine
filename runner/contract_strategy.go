@@ -239,9 +239,9 @@ func (r *ContractStrategyRunner) validateExchangeOrdersDetails() error {
 		if !ok {
 			return errors.New("position status: 'OPENED', 'exchange_orders_details.entry_order' is missing")
 		}
-		_, ok = entryOrder["size"].(string)
+		_, ok = entryOrder["order_id"].(string)
 		if !ok {
-			return errors.New("position status: 'OPENED', 'exchange_orders_details.entry_order.size' is missing")
+			return errors.New("position status: 'OPENED', 'exchange_orders_details.entry_order.order_id' is missing")
 		}
 	case contract.UNKNOWN:
 		return errors.New("unknown status")

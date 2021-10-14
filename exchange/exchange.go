@@ -20,7 +20,7 @@ import (
 type Exchanger interface {
 	NewClient(map[string]interface{}) error
 	GetAccountInfo() (map[string]interface{}, error)
-	PlaceEntryOrder(string, order.Side, decimal.Decimal) error
+	PlaceEntryOrder(string, order.Side, decimal.Decimal) (int64, error)
 	PlaceStopLossOrder(string, order.Side, decimal.Decimal, decimal.Decimal) (int64, error)
 	RetryPlaceStopLossOrder(string, order.Side, decimal.Decimal, decimal.Decimal, int64, int64) (int64, error)
 	ClosePosition(string, order.Side, decimal.Decimal) error
