@@ -9,6 +9,7 @@ import (
 )
 
 type Trigger interface {
+	GetTriggerType() string
 	GetPrice(time.Time) decimal.Decimal
 	GetOperator() string
 	SetOperator(string)

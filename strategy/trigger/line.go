@@ -93,7 +93,13 @@ func newLine(data map[string]interface{}) (l *Line, err error) {
 	}, nil
 }
 
-// get price
+// Get trigger type
+// TODO test
+func (l *Line) GetTriggerType() string {
+	return l.TriggerType
+}
+
+// Get price
 func (l *Line) GetPrice(t time.Time) decimal.Decimal {
 	if t.Equal(l.Time1) {
 		return l.Price1

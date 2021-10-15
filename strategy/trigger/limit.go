@@ -42,6 +42,12 @@ func newLimit(data map[string]interface{}) (m *Limit, err error) {
 	}, nil
 }
 
+// Get trigger type
+// TODO test
+func (l *Limit) GetTriggerType() string {
+	return l.TriggerType
+}
+
 // Get price
 func (l *Limit) GetPrice(_ time.Time) decimal.Decimal {
 	return l.Price

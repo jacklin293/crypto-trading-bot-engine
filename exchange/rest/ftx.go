@@ -195,20 +195,21 @@ func (rest *FtxRest) ClosePosition(symbol string, side order.Side, size decimal.
 	return err
 }
 
-func (rest *FtxRest) RetryClosePosition(symbol string, side order.Side, size decimal.Decimal, retry int64, interval int64) (err error) {
-	for i := int64(0); i <= retry; i++ {
-		if err = rest.ClosePosition(symbol, side, size); err != nil {
-			if rest.ignoreError(err) {
-				break
-			}
-			log.Printf("RetryClosePosition err: %v", err)
-			time.Sleep(time.Second * time.Duration(interval))
-			continue
-		}
-		break
-	}
-	return
-}
+// NOTE Don't use this, because it would loop until end when the position has been closed. The error will always get 'Status Code: 400    Error: Invalid reduce-only order'
+// func (rest *FtxRest) RetryClosePosition(symbol string, side order.Side, size decimal.Decimal, retry int64, interval int64) (err error) {
+//	for i := int64(0); i <= retry; i++ {
+//		if err = rest.ClosePosition(symbol, side, size); err != nil {
+//			if rest.ignoreError(err) {
+//				break
+//			}
+//			log.Printf("RetryClosePosition err: %v", err)
+//			time.Sleep(time.Second * time.Duration(interval))
+//			continue
+//		}
+//		break
+//	}
+//	return
+// }
 
 func (rest *FtxRest) CancelOpenTriggerOrder(orderId int64) error {
 	return rest.client.Orders.CancelOpenTriggerOrder(orderId)

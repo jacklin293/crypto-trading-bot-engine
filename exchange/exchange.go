@@ -24,7 +24,6 @@ type Exchanger interface {
 	PlaceStopLossOrder(string, order.Side, decimal.Decimal, decimal.Decimal) (int64, error)
 	RetryPlaceStopLossOrder(string, order.Side, decimal.Decimal, decimal.Decimal, int64, int64) (int64, error)
 	ClosePosition(string, order.Side, decimal.Decimal) error
-	RetryClosePosition(string, order.Side, decimal.Decimal, int64, int64) error
 	CancelOpenTriggerOrder(int64) error
 	RetryCancelOpenTriggerOrder(int64, int64, int64) error
 	GetPosition(string) (map[string]interface{}, error)
