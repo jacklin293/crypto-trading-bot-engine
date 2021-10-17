@@ -128,8 +128,8 @@ func (ch *contractHook) StopLossTriggerCreated(c *contract.Contract) (bool, erro
 		return true, fmt.Errorf("StopLossTriggerCreated - failed to convert 'size' from order info, err: %v", err)
 	}
 
-	// Place stop-loss order - retyr 30 times, interval 2 secs
-	orderId, err := ch.exchange.RetryPlaceStopLossOrder(ch.contractStrategy.Symbol, order.Side(ch.contractStrategy.Side), p, size, 30, 2)
+	// Place stop-loss order - retyr 10 times, interval 2 secs
+	orderId, err := ch.exchange.RetryPlaceStopLossOrder(ch.contractStrategy.Symbol, order.Side(ch.contractStrategy.Side), p, size, 10, 2)
 	if err != nil {
 		ch.notify("[Error] %s %s - failed to place stop-loss order, err: %v", order.TranslateSideByInt(ch.contractStrategy.Side), ch.contractStrategy.Symbol, err)
 		ch.closePosition()
@@ -159,9 +159,33 @@ func (ch *contractHook) StopLossTriggerCreated(c *contract.Contract) (bool, erro
 func (ch *contractHook) StopLossTriggered(c *contract.Contract) (bool, error) {
 	ch.notify("[Stop-loss] '%s %s' has been triggered", order.TranslateSideByInt(ch.contractStrategy.Side), ch.contractStrategy.Symbol)
 
-	if err := ch.closePosition(); err != nil {
-		return true, fmt.Errorf("StopLossTriggered - failed to close position, err: %v", err)
+	retry := 10
+	interval := 2
+	var size string
+	for i := 1; i <= retry; i++ {
+		// Get size from open position
+		positionInfo, err := ch.exchange.GetPosition(ch.contractStrategy.Symbol)
+		if err != nil {
+			ch.logWithInfof("StopLossTriggered - failed to get open position, err: %v", err)
+			time.Sleep(time.Second * time.Duration(interval))
+			continue
+		}
+
+		// If size is zero, it means that it might be closed already
+		size = positionInfo["size"].(string)
+		if size != "0" {
+			ch.notify("[Info] waiting for %s to close '%s %s' position (size: %s, count: %d)", ch.contractStrategy.Exchange, order.TranslateSideByInt(ch.contractStrategy.Side), ch.contractStrategy.Symbol, size, i)
+			time.Sleep(time.Second * time.Duration(interval))
+			continue
+		}
+		// success
+		break
 	}
+	if size != "0" {
+		ch.notify("[Error] '%s %s' wasn't closed by %s. Please check and reset your position and order", order.TranslateSideByInt(ch.contractStrategy.Side), ch.contractStrategy.Symbol, ch.contractStrategy.Exchange)
+		return true, fmt.Errorf("'%s %s' wasn't closed by %s (size: %s)", order.TranslateSideByInt(ch.contractStrategy.Side), ch.contractStrategy.Symbol, ch.contractStrategy.Exchange, size)
+	}
+	ch.notify("[Info] '%s %s' position have been closed by stop-loss trigger order", order.TranslateSideByInt(ch.contractStrategy.Side), ch.contractStrategy.Symbol)
 
 	// Reset status and exchange_orders_details
 	contractStrategy := map[string]interface{}{
@@ -181,8 +205,6 @@ func (ch *contractHook) StopLossTriggered(c *contract.Contract) (bool, error) {
 }
 
 func (ch *contractHook) EntryTrendlineTriggerUpdated(c *contract.Contract) {
-	ch.notify("[Info] '%s %s' entry trend line has been updated", order.TranslateSideByInt(ch.contractStrategy.Side), ch.contractStrategy.Symbol)
-
 	// Send new trendline
 	t := c.EntryOrder.(*order.Entry).TrendlineTrigger
 	// trigger shouldn't be 'nil', but just in case that it won't blow up
@@ -191,7 +213,7 @@ func (ch *contractHook) EntryTrendlineTriggerUpdated(c *contract.Contract) {
 		t1 := t.(*trigger.Line).Time1
 		p2 := t.(*trigger.Line).Price2
 		t2 := t.(*trigger.Line).Time2
-		ch.notify("[Info] New entry trend line:\nPoint 1: $%s, '%s'\nPoint 2: $%s, '%s'", p1, t1.Format("2006-01-02 15:04"), p2, t2.Format("2006-01-02 15:04"))
+		ch.notify("[Info] '%s %s' New entry trend line has been updated:\nPoint 1: $%s, '%s'\nPoint 2: $%s, '%s'", order.TranslateSideByInt(ch.contractStrategy.Side), ch.contractStrategy.Symbol, p1, t1.Format("2006-01-02 15:04"), p2, t2.Format("2006-01-02 15:04"))
 	}
 }
 
@@ -309,7 +331,7 @@ func (ch *contractHook) closePosition() error {
 			return fmt.Errorf("closePosition - stop_loss_order.order_id is missing")
 		}
 		stopLossOrderId := int64(tmpId)
-		if err = ch.exchange.RetryCancelOpenTriggerOrder(stopLossOrderId, 20, 2); err != nil {
+		if err = ch.exchange.RetryCancelOpenTriggerOrder(stopLossOrderId, 10, 2); err != nil {
 			if strings.Contains(err.Error(), "Order already closed") {
 				ch.notify("[Info] %s Stop-loss trigger order has been closed already", ch.contractStrategy.Symbol)
 			} else {
@@ -328,7 +350,7 @@ func (ch *contractHook) closePosition() error {
 // When closed is true, it means that it might have been closed by stop-loss trigger order by FTX
 func (ch *contractHook) closeOpenPosition() (closed bool, err error) {
 	// Get size from open position
-	positionInfo, err := ch.exchange.RetryGetPosition(ch.contractStrategy.Symbol, 30, 2)
+	positionInfo, err := ch.exchange.RetryGetPosition(ch.contractStrategy.Symbol, 10, 2)
 	if err != nil {
 		ch.logWithInfof("closeOpenPosition - failed to get open position, err: %v", err)
 		return

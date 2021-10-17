@@ -122,6 +122,10 @@ func (rest *FtxRest) RetryPlaceStopLossOrder(symbol string, side order.Side, pri
 	return
 }
 
+func (rest *FtxRest) CancelStopLossOrder(orderId int64) error {
+	return rest.CancelOpenTriggerOrder(orderId)
+}
+
 // &{
 //		Cost:78.66075
 //		EntryPrice:52.4405
