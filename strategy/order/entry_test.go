@@ -253,9 +253,9 @@ func TestEntryUpdateTriggerByTrendlineAndOffset(t *testing.T) {
 			expectedTrigger: &trigger.Line{
 				Operator: "<=",
 				Time1:    time.Date(2021, 8, 27, 0, 15, 0, 0, time.UTC),
-				Price1:   decimal.NewFromFloat(45884.9556),
+				Price1:   decimal.NewFromFloat(46811.9244),
 				Time2:    time.Date(2021, 8, 29, 4, 00, 0, 0, time.UTC),
-				Price2:   decimal.NewFromFloat(47284.9146),
+				Price2:   decimal.NewFromFloat(48240.1654),
 			},
 		},
 		{
@@ -265,9 +265,9 @@ func TestEntryUpdateTriggerByTrendlineAndOffset(t *testing.T) {
 			expectedTrigger: &trigger.Line{
 				Operator: "<=",
 				Time1:    time.Date(2021, 8, 27, 0, 15, 0, 0, time.UTC),
-				Price1:   decimal.NewFromFloat(46811.9244),
+				Price1:   decimal.NewFromFloat(45884.9556),
 				Time2:    time.Date(2021, 8, 29, 4, 00, 0, 0, time.UTC),
-				Price2:   decimal.NewFromFloat(48240.1654),
+				Price2:   decimal.NewFromFloat(47284.9146),
 			},
 		},
 	}
@@ -283,7 +283,7 @@ func TestEntryUpdateTriggerByTrendlineAndOffset(t *testing.T) {
 			},
 			TrendlineOffsetPercent: tc.percent,
 		}
-		o.UpdateTriggerByTrendlineAndOffset(tc.side)
+		o.UpdateTriggerByTrendlineAndOffset()
 
 		if !reflect.DeepEqual(tc.expectedTrigger, o.Trigger) {
 			t.Errorf("TestEntryUpdateTriggerByTrendlineAndOffset case '%s' - expect '%v', but got '%v'", tc.title, tc.expectedTrigger, o.Trigger)

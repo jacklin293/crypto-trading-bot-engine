@@ -501,7 +501,7 @@ func TestTrendlineAllOrders(t *testing.T) {
 					"time_2":       "2021-08-10T16:30:00Z",
 					"price_2":      "44589.46",
 				},
-				"trendline_offset_percent": 0.01,
+				"trendline_offset_percent": -0.01,
 			},
 			takeProfitOrder: &order.TakeProfit{Trigger: &trigger.Limit{
 				Operator: "<=",
@@ -530,7 +530,7 @@ func TestTrendlineAllOrders(t *testing.T) {
 					"time_2":       "2021-08-10T16:30:00Z",
 					"price_2":      "44589.46",
 				},
-				"trendline_offset_percent": 0.01,
+				"trendline_offset_percent": -0.01,
 			},
 			takeProfitOrder: &order.TakeProfit{Trigger: &trigger.Limit{
 				Operator: "<=",
@@ -563,7 +563,7 @@ func TestTrendlineAllOrders(t *testing.T) {
 					"time_2":       "2021-08-10T16:30:00Z",
 					"price_2":      "44589.46",
 				},
-				"trendline_offset_percent": 0.01,
+				"trendline_offset_percent": -0.01,
 			},
 			feeds: []testFeed{
 				{price: decimal.NewFromFloat(45581), time: time.Date(2021, 8, 11, 23, 58, 0, 0, time.UTC), expectedHooks: nil},                                                  // 45580.49
@@ -589,7 +589,7 @@ func TestTrendlineAllOrders(t *testing.T) {
 					"time_2":       "2021-08-10T16:30:00Z",
 					"price_2":      "44589.46",
 				},
-				"trendline_offset_percent": 0.01,
+				"trendline_offset_percent": -0.01,
 			},
 			feeds: []testFeed{
 				{price: decimal.NewFromFloat(45581), time: time.Date(2021, 8, 11, 23, 58, 0, 0, time.UTC), expectedHooks: nil},                        // 45580.49
@@ -699,7 +699,7 @@ func TestTrendlineOffsetAndLossTolerancePercent(t *testing.T) {
 			},
 		},
 		{
-			title: "short - +0.01 / 0.01",
+			title: "short - -0.01 / 0.01",
 			side:  order.SHORT,
 			entryData: map[string]interface{}{
 				"trendline_trigger": map[string]interface{}{
@@ -710,7 +710,7 @@ func TestTrendlineOffsetAndLossTolerancePercent(t *testing.T) {
 					"time_2":       "2021-08-18T10:00:00Z",
 					"price_2":      "49560",
 				},
-				"trendline_offset_percent": 0.01,
+				"trendline_offset_percent": -0.01,
 			},
 			stopLossOrder: &order.StopLoss{
 				LossTolerancePercent: 0.01,
@@ -729,7 +729,7 @@ func TestTrendlineOffsetAndLossTolerancePercent(t *testing.T) {
 			},
 		},
 		{
-			title: "short - -0.01 / 0.02",
+			title: "short - +0.01 / 0.02",
 			side:  order.SHORT,
 			entryData: map[string]interface{}{
 				"trendline_trigger": map[string]interface{}{
@@ -740,7 +740,7 @@ func TestTrendlineOffsetAndLossTolerancePercent(t *testing.T) {
 					"time_2":       "2021-08-18T10:00:00Z",
 					"price_2":      "49560",
 				},
-				"trendline_offset_percent": -0.01,
+				"trendline_offset_percent": 0.01,
 			},
 			stopLossOrder: &order.StopLoss{
 				LossTolerancePercent: 0.02,
@@ -986,7 +986,7 @@ func TestTrendlineFlipOperatorEnabled(t *testing.T) {
 					"time_2":       "2021-08-12T20:30:00Z",
 					"price_2":      "44500",
 				},
-				"trendline_offset_percent": 0.01,
+				"trendline_offset_percent": -0.01,
 				"flip_operator_enabled":    true,
 			},
 			takeProfitOrder: &order.TakeProfit{Trigger: &trigger.Line{
@@ -1033,7 +1033,7 @@ func TestTrendlineFlipOperatorEnabled(t *testing.T) {
 					"time_2":       "2021-08-12T20:30:00Z",
 					"price_2":      "44500",
 				},
-				"trendline_offset_percent": 0.01,
+				"trendline_offset_percent": -0.01,
 				"flip_operator_enabled":    true,
 			},
 			feeds: []testFeed{
@@ -1203,7 +1203,7 @@ func TestTrendlineReadjustmentTrue(t *testing.T) {
 					"time_2":       "2021-08-10T16:30:00Z",
 					"price_2":      "44589.46",
 				},
-				"trendline_offset_percent": 0.01,
+				"trendline_offset_percent": -0.01,
 			},
 			takeProfitOrder: &order.TakeProfit{Trigger: &trigger.Limit{
 				Operator: "<=",

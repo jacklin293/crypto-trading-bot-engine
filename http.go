@@ -22,6 +22,7 @@ type httpHandler struct {
 	server        *http.Server
 	logger        *log.Logger
 	runnerHandler *runnerHandler
+	uptime        time.Time
 }
 
 func newHttpHandler(l *log.Logger) *httpHandler {
@@ -41,6 +42,7 @@ func newHttpHandler(l *log.Logger) *httpHandler {
 	return &httpHandler{
 		logger: l,
 		server: server,
+		uptime: time.Now(),
 	}
 }
 
@@ -81,7 +83,9 @@ func (h *httpHandler) ping(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *httpHandler) status(w http.ResponseWriter, r *http.Request) {
-	fmt.Fprintf(w, "goroutine num: %d", runtime.NumGoroutine())
+	hours := int64(time.Since(h.uptime).Hours())
+	days := int64(hours / 24)
+	fmt.Fprintf(w, "up %d days %d hours, %d goroutines", days, hours%24, runtime.NumGoroutine())
 }
 
 func (h *httpHandler) show(w http.ResponseWriter, r *http.Request) {
@@ -99,7 +103,7 @@ func (h *httpHandler) show(w http.ResponseWriter, r *http.Request) {
 func (h *httpHandler) list(w http.ResponseWriter, r *http.Request) {
 	list := make(map[string]string)
 	h.runnerHandler.runnerByUuidMap.Range(func(key, r interface{}) bool {
-		list[key.(string)] = r.(*runner.ContractStrategyRunner).LastPriceCheckedTime.Format("2006-01-02 15:04:05")
+		list[key.(string)] = fmt.Sprintf("%s %s", r.(*runner.ContractStrategyRunner).ContractStrategy.Symbol, r.(*runner.ContractStrategyRunner).LastPriceCheckedTime.Format("2006-01-02 15:04:05"))
 		return true
 	})
 

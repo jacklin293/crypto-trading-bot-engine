@@ -159,7 +159,7 @@ func (ch *contractHook) StopLossTriggerCreated(c *contract.Contract) (bool, erro
 func (ch *contractHook) StopLossTriggered(c *contract.Contract) (bool, error) {
 	ch.notify("[Stop-loss] '%s %s' has been triggered", order.TranslateSideByInt(ch.contractStrategy.Side), ch.contractStrategy.Symbol)
 
-	retry := 10
+	retry := 30
 	interval := 2
 	var size string
 	for i := 1; i <= retry; i++ {

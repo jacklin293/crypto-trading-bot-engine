@@ -52,7 +52,7 @@ func NewEntry(side Side, entryType string, data map[string]interface{}) (*Entry,
 			return &o, errors.New("'trendline_offset_percent' is missing")
 		}
 		o.TrendlineOffsetPercent = p
-		o.UpdateTriggerByTrendlineAndOffset(side)
+		o.UpdateTriggerByTrendlineAndOffset()
 	}
 
 	var enabled bool
@@ -98,17 +98,10 @@ func (o *Entry) UpdateTrendlineTrigger(side Side, p2 decimal.Decimal, t2 time.Ti
 }
 
 // entry_type 'trendline' only
-// For long position, entry order will be triggered at the price higher than trendline
-// For short position, entry order will be triggered at the price lower than trendline
-func (o *Entry) UpdateTriggerByTrendlineAndOffset(side Side) {
+func (o *Entry) UpdateTriggerByTrendlineAndOffset() {
 	// entry order based on trendline_trigger and offset percent
-	var percent decimal.Decimal
-	switch side {
-	case LONG:
-		percent = decimal.NewFromFloat(1 + o.TrendlineOffsetPercent)
-	case SHORT:
-		percent = decimal.NewFromFloat(1 - o.TrendlineOffsetPercent)
-	}
+	percent := decimal.NewFromFloat(1 + o.TrendlineOffsetPercent)
+
 	// Use SetTrigger to prevent TrendlineTrigger from being modified due to pointer
 	o.SetTrigger(o.TrendlineTrigger)
 	o.Trigger.UpdatePriceByPercent(percent)

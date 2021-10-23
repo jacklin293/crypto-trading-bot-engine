@@ -307,7 +307,7 @@ func (c *Contract) readjustEntryTrendline() {
 	c.EntryOrder.(*order.Entry).UpdateTrendlineTrigger(c.Side, c.BreakoutPeak.Price, c.BreakoutPeak.Time)
 
 	// Update trigger based on trendline trigger and offset
-	c.EntryOrder.(*order.Entry).UpdateTriggerByTrendlineAndOffset(c.Side)
+	c.EntryOrder.(*order.Entry).UpdateTriggerByTrendlineAndOffset()
 }
 
 // entry_type 'trendline' only
