@@ -152,9 +152,10 @@ func (rest *FtxRest) GetPosition(symbol string) (map[string]interface{}, error) 
 
 	for _, position := range positions {
 		if position.Future == symbol {
-			// NOTE cost and entry_price are useless, they are dynamic instead of the data happened
+			// NOTE cost and entry_price are useless, they are dynamic instead of the price at the time
 			p["cost"] = position.Cost.Abs().String() // make number positive no matter it's long or short
 			p["entry_price"] = position.EntryPrice.String()
+
 			p["size"] = position.Size.String()
 			p["symbol"] = position.Future
 			switch models.Side(position.Side) {

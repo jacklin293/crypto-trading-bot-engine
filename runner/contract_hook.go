@@ -150,7 +150,7 @@ func (ch *contractHook) StopLossTriggerCreated(c *contract.Contract) (bool, erro
 	_, err = ch.db.UpdateContractStrategy(ch.contractStrategy.Uuid, contractStrategy)
 	if err != nil {
 		ch.notify("[Error] '%s %s' Internal Server Error. Please check and reset your position and order", order.TranslateSideByInt(ch.contractStrategy.Side), ch.contractStrategy.Symbol)
-		return true, fmt.Errorf("StopLossTriggerCreated - failed to update 'exchange_order_details', err: %v", err)
+		return true, fmt.Errorf("StopLossTriggerCreated - failed to update 'exchange_orders_details', err: %v", err)
 	}
 
 	return false, nil

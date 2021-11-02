@@ -157,9 +157,6 @@ func (h *runnerHandler) startContractStrategyRunner(cs db.ContractStrategy, user
 		h.eventsCh.Disable <- cs.Uuid
 		return
 	}
-
-	text := fmt.Sprintf("[Info] '%s %s' has been tracked (margin: $%s)", order.TranslateSideByInt(cs.Side), cs.Symbol, cs.Margin)
-	go h.sender.Send(user.TelegramChatId, text)
 	return nil
 }
 
