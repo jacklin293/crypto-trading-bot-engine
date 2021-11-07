@@ -236,6 +236,49 @@ func (rest *FtxRest) RetryCancelOpenTriggerOrder(orderId int64, retry int64, int
 	return
 }
 
+func (rest *FtxRest) StopLostOrderExists(symbol string, orderId int64) (bool, error) {
+	triggerType := models.Stop
+	orders, err := rest.client.Orders.GetOpenTriggerOrders(&models.GetOpenTriggerOrdersParams{
+		Market: &symbol,
+		Type:   &triggerType,
+	})
+	if err != nil {
+		return true, err
+	}
+
+	// order: {
+	//	   ID:98124446
+	//	   OrderID:0
+	//	   Market:BTC-PERP
+	//	   CreatedAt:2021-11-07 06:36:32.054452 +0000 +0000
+	//	   Error:
+	//	   Future:BTC-PERP
+	//	   OrderPrice:0
+	//	   ReduceOnly:true
+	//	   Side:sell
+	//	   Size:0.0001
+	//	   Status:open
+	//	   TrailStart:0
+	//	   TrailValue:0
+	//	   TriggerPrice:59000
+	//	   TriggeredAt:0001-01-01 00:00:00 +0000 U
+	//	   TC Type:stop
+	//	   OrderType:market
+	//	   FilledSize:0
+	//	   AvgFillPrice:0
+	//	   OrderStatus:
+	//	   RetryUntilFilled:true
+	// }
+	for _, order := range orders {
+		if order.ID == orderId {
+			return true, nil
+		}
+	}
+
+	// If stop-loss trigger order has been executed, it might be executed by FTX already
+	return false, nil
+}
+
 func (rest *FtxRest) translateSide(s order.Side) models.Side {
 	switch s {
 	case order.LONG:

@@ -36,7 +36,7 @@ func (th *testHook) StopLossTriggerCreated(c *Contract) (bool, error) {
 	return false, nil
 }
 
-func (th *testHook) StopLossTriggered(c *Contract) (bool, error) {
+func (th *testHook) StopLossTriggered(c *Contract, p decimal.Decimal) (bool, error) {
 	th.funcNames = append(th.funcNames, "StopLossTriggered")
 	return false, nil
 }
@@ -49,7 +49,7 @@ func (th *testHook) EntryTriggerOperatorUpdated(c *Contract) {
 	th.funcNames = append(th.funcNames, "EntryTriggerOperatorUpdated")
 }
 
-func (th *testHook) TakeProfitTriggered(c *Contract) error {
+func (th *testHook) TakeProfitTriggered(c *Contract, p decimal.Decimal) error {
 	th.funcNames = append(th.funcNames, "TakeProfitTriggered")
 	return nil
 }

@@ -345,8 +345,6 @@ func (h *runnerHandler) enableContractStrategy(uuid string) {
 	}
 
 	h.logger.Printf("[Info] strategy: '%s', user: '%s', symbol: '%s' has been enabled", cs.Uuid, cs.UserUuid, cs.Symbol)
-	text := fmt.Sprintf("[Info] '%s %s' has been enabled", order.TranslateSideByInt(cs.Side), cs.Symbol)
-	h.sender.Send(user.TelegramChatId, text)
 }
 
 func (h *runnerHandler) disableContractStrategy(uuid string) {
@@ -389,8 +387,6 @@ func (h *runnerHandler) disableContractStrategy(uuid string) {
 	r.(*runner.ContractStrategyRunner).Stop()
 
 	h.logger.Printf("[Info] strategy: '%s', user: '%s', symbol: '%s' has been disabled", cs.Uuid, cs.UserUuid, cs.Symbol)
-	text := fmt.Sprintf("[Info] '%s %s' has been disabled", order.TranslateSideByInt(cs.Side), cs.Symbol)
-	h.sender.Send(user.(*db.User).TelegramChatId, text)
 }
 
 func (h *runnerHandler) outOfSyncContractStrategy(uuid string) {
@@ -427,7 +423,7 @@ func (h *runnerHandler) outOfSyncContractStrategy(uuid string) {
 	}
 
 	h.logger.Printf("[Warn] strategy: '%s', user: '%s', symbol: '%s' status has been changed to 'UNKNOWN'", cs.Uuid, cs.UserUuid, cs.Symbol)
-	text := fmt.Sprintf("[Warn] '%s %s' is out of sync, please check and reset your position and order", order.TranslateSideByInt(cs.Side), cs.Symbol)
+	text := fmt.Sprintf("[錯誤] '%s %s' 資料不同步, 請手動確認", order.TranslateSideByInt(cs.Side), cs.Symbol)
 	h.sender.Send(user.(*db.User).TelegramChatId, text)
 }
 
@@ -471,6 +467,6 @@ func (h *runnerHandler) resetContractStrategy(uuid string) {
 	r.(*runner.ContractStrategyRunner).Stop()
 
 	h.logger.Printf("[Info] strategy: '%s', user: '%s', symbol: '%s' has been reset", cs.Uuid, cs.UserUuid, cs.Symbol)
-	text := fmt.Sprintf("[Info] '%s %s' has been reset", order.TranslateSideByInt(cs.Side), cs.Symbol)
+	text := fmt.Sprintf("[提示] 已重置 '%s %s'", order.TranslateSideByInt(cs.Side), cs.Symbol)
 	h.sender.Send(user.(*db.User).TelegramChatId, text)
 }
