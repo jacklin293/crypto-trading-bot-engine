@@ -31,12 +31,12 @@ type Hooker interface {
 	StopLossTriggerCreated(*Contract) (bool, error)
 
 	// StopLossOrder
-	StopLossTriggered(*Contract) (bool, error)
+	StopLossTriggered(*Contract, decimal.Decimal) (bool, error)
 	EntryTrendlineTriggerUpdated(*Contract)
 	EntryTriggerOperatorUpdated(*Contract)
 
 	// TakeProfitOrder
-	TakeProfitTriggered(*Contract) error
+	TakeProfitTriggered(*Contract, decimal.Decimal) error
 
 	// Entry order trigger gets updated
 	ParamsUpdated(*Contract) (bool, error)
@@ -240,7 +240,7 @@ func (c *Contract) CheckPrice(mark Mark) (halted bool, err error) {
 		// Check if stop-loss order is triggered
 		if c.StopLossOrder != nil && c.StopLossOrder.IsTriggered(mark.Time, mark.Price) {
 			// Stop-loss order is triggered
-			if halted, err = c.hook.StopLossTriggered(c); err != nil || halted {
+			if halted, err = c.hook.StopLossTriggered(c, mark.Price); err != nil || halted {
 				return
 			}
 			c.Status = CLOSED
@@ -269,7 +269,7 @@ func (c *Contract) CheckPrice(mark Mark) (halted bool, err error) {
 			// Take-profit order is triggered
 			c.Status = CLOSED
 			halted = true
-			if err = c.hook.TakeProfitTriggered(c); err != nil {
+			if err = c.hook.TakeProfitTriggered(c, mark.Price); err != nil {
 				return
 			}
 

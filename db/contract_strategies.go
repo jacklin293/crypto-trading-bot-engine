@@ -62,7 +62,7 @@ func (db *DB) GetContractStrategyByUuid(uuid string) (*ContractStrategy, error) 
 // for API
 func (db *DB) GetContractStrategiesByUser(userUuid string) ([]ContractStrategy, int64, error) {
 	var css []ContractStrategy
-	result := db.GormDB.Where("user_uuid = ?", userUuid).Order("position_status DESC, enabled DESC").Find(&css)
+	result := db.GormDB.Where("user_uuid = ?", userUuid).Order("position_status DESC, enabled DESC, symbol").Find(&css)
 	if result.Error != nil && !errors.Is(result.Error, gorm.ErrRecordNotFound) {
 		return css, 0, result.Error
 	}
@@ -70,7 +70,6 @@ func (db *DB) GetContractStrategiesByUser(userUuid string) ([]ContractStrategy, 
 }
 
 // for API
-
 func (db *DB) GetContractStrategyByUuidByUser(uuid string, userUuid string) (*ContractStrategy, error) {
 	var s ContractStrategy
 	result := db.GormDB.Where("uuid = ? AND user_uuid = ?", uuid, userUuid).First(&s)

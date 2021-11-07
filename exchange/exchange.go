@@ -29,6 +29,7 @@ type Exchanger interface {
 	RetryCancelOpenTriggerOrder(int64, int64, int64) error
 	GetPosition(string) (map[string]interface{}, error)
 	RetryGetPosition(string, int64, int64) (map[string]interface{}, error)
+	StopLostOrderExists(string, int64) (bool, error)
 }
 
 type WsExchanger interface {
