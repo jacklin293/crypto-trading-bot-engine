@@ -1,5 +1,6 @@
-# crypto-trading-bot-engine
+# DEPRECATED
 
+This is an experimental repo and no longer maintained.
 
 # Set up the environment
 
